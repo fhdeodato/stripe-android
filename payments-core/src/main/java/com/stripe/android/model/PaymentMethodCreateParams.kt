@@ -969,11 +969,13 @@ constructor(
         @JvmStatic
         @JvmOverloads
         fun createAlipay(
+            billingDetails: PaymentMethod.BillingDetails? = null,
             metadata: Map<String, String>? = null,
             allowRedisplay: PaymentMethod.AllowRedisplay? = null,
         ): PaymentMethodCreateParams {
             return PaymentMethodCreateParams(
                 type = PaymentMethod.Type.Alipay,
+                billingDetails = billingDetails,
                 metadata = metadata,
                 allowRedisplay = allowRedisplay,
             )
