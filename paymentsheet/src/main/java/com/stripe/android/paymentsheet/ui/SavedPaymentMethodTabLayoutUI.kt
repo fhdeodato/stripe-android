@@ -34,10 +34,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
@@ -55,6 +55,7 @@ import com.stripe.android.paymentsheet.PaymentOptionsItem
 import com.stripe.android.paymentsheet.R
 import com.stripe.android.paymentsheet.key
 import com.stripe.android.paymentsheet.model.PaymentSelection
+import com.stripe.android.paymentsheet.navigation.PaymentSheetScreen.SelectSavedPaymentMethods.CvcRecollectionState
 import com.stripe.android.paymentsheet.toPaymentSelection
 import com.stripe.android.ui.core.elements.CvcController
 import com.stripe.android.ui.core.elements.CvcElement
@@ -70,6 +71,56 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import com.stripe.android.R as StripeR
 
+@Composable
+internal fun SavedPaymentMethodTabLayoutUI(
+    interactor: SelectSavedPaymentMethodsInteractor,
+    cvcRecollectionState: CvcRecollectionState,
+    modifier: Modifier,
+) {
+    val state by interactor.state.collectAsState()
+
+    SavedPaymentMethodTabLayoutUI(
+        paymentOptionsItems = state.paymentOptionsItems,
+        selectedPaymentOptionsItem = state.selectedPaymentOptionsItem,
+        isEditing = state.isEditing,
+        isProcessing = state.isProcessing,
+        onAddCardPressed = {
+            interactor.handleViewAction(
+                SelectSavedPaymentMethodsInteractor.ViewAction.AddCardPressed
+            )
+        },
+        onItemSelected = {
+            interactor.handleViewAction(
+                SelectSavedPaymentMethodsInteractor.ViewAction.SelectPaymentMethod(
+                    it
+                )
+            )
+        },
+        onModifyItem = {
+            interactor.handleViewAction(
+                SelectSavedPaymentMethodsInteractor.ViewAction.EditPaymentMethod(it)
+            )
+        },
+        onItemRemoved = {
+            interactor.handleViewAction(
+                SelectSavedPaymentMethodsInteractor.ViewAction.DeletePaymentMethod(it)
+            )
+        },
+        modifier = modifier,
+    )
+
+    if (
+        cvcRecollectionState is CvcRecollectionState.Required &&
+        (state.selectedPaymentOptionsItem as? PaymentOptionsItem.SavedPaymentMethod)
+            ?.paymentMethod?.type == PaymentMethod.Type.Card
+    ) {
+        CvcRecollectionField(
+            cvcControllerFlow = cvcRecollectionState.cvcControllerFlow,
+            state.isProcessing
+        )
+    }
+}
+
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun SavedPaymentMethodTabLayoutUI(
@@ -84,7 +135,7 @@ internal fun SavedPaymentMethodTabLayoutUI(
     modifier: Modifier = Modifier,
     scrollState: LazyListState = rememberLazyListState(),
 ) {
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth().testTag(SAVED_PAYMENT_OPTION_TAB_LAYOUT_TEST_TAG)) {
         val width = rememberItemWidth(maxWidth)
 
         LazyRow(
@@ -142,7 +193,8 @@ private fun SavedPaymentMethodsTabLayoutPreview() {
                                 last4 = "4242",
                             )
                         )
-                    )
+                    ),
+                    canRemovePaymentMethods = true,
                 ),
                 PaymentOptionsItem.SavedPaymentMethod(
                     DisplayableSavedPaymentMethod(
@@ -154,7 +206,8 @@ private fun SavedPaymentMethodsTabLayoutPreview() {
                             code = PaymentMethod.Type.SepaDebit.code,
                             type = PaymentMethod.Type.SepaDebit,
                         )
-                    )
+                    ),
+                    canRemovePaymentMethods = true,
                 ),
             ),
             selectedPaymentOptionsItem = PaymentOptionsItem.AddCard,
@@ -224,7 +277,6 @@ private fun SavedPaymentMethodTab(
                 isEnabled = isEnabled,
                 isEditing = isEditing,
                 isModifiable = item.isModifiable,
-                isRemovable = item.isRemovable,
                 isSelected = isSelected,
                 onItemSelected = onItemSelected,
                 onModifyItem = onModifyItem,
@@ -311,14 +363,12 @@ private fun SavedPaymentMethodTab(
     isEnabled: Boolean,
     isEditing: Boolean,
     isModifiable: Boolean,
-    isRemovable: Boolean,
     isSelected: Boolean,
     onItemSelected: (PaymentSelection?) -> Unit,
     onModifyItem: (PaymentMethod) -> Unit,
     onItemRemoved: (PaymentMethod) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val labelIcon = paymentMethod.paymentMethod.getLabelIcon()
     val labelText = paymentMethod.paymentMethod.getLabel()?.resolve() ?: return
 
@@ -327,27 +377,46 @@ private fun SavedPaymentMethodTab(
             testTag = SAVED_PAYMENT_OPTION_TEST_TAG
             selected = isSelected
             text = AnnotatedString(labelText)
+
+            if (!isEnabled) {
+                disabled()
+            }
         }
     ) {
         SavedPaymentMethodTab(
             viewWidth = width,
             editState = when {
-                isEditing && isModifiable -> PaymentOptionEditState.Modifiable
-                isEditing && isRemovable -> PaymentOptionEditState.Removable
+                isEnabled && isEditing && isModifiable -> PaymentOptionEditState.Modifiable
+                isEnabled && isEditing -> PaymentOptionEditState.Removable
                 else -> PaymentOptionEditState.None
             },
             isSelected = isSelected,
             isEnabled = isEnabled,
+            isClickable = !isEditing,
             iconRes = paymentMethod.paymentMethod.getSavedPaymentMethodIcon(),
             labelIcon = labelIcon,
             labelText = labelText,
             paymentMethod = paymentMethod.displayableSavedPaymentMethod,
-            description = paymentMethod.displayableSavedPaymentMethod.getDescription(context.resources),
+            description = paymentMethod
+                .displayableSavedPaymentMethod
+                .getDescription()
+                .resolve()
+                .readNumbersAsIndividualDigits(),
             onModifyListener = { onModifyItem(paymentMethod.paymentMethod) },
-            onModifyAccessibilityDescription = paymentMethod.getModifyDescription(context.resources),
+            onModifyAccessibilityDescription = paymentMethod
+                .displayableSavedPaymentMethod
+                .getModifyDescription()
+                .resolve()
+                .readNumbersAsIndividualDigits(),
             onRemoveListener = { onItemRemoved(paymentMethod.paymentMethod) },
-            onRemoveAccessibilityDescription = paymentMethod.getRemoveDescription(context.resources),
-            onItemSelectedListener = { onItemSelected(paymentMethod.toPaymentSelection()) },
+            onRemoveAccessibilityDescription = paymentMethod
+                .displayableSavedPaymentMethod
+                .getRemoveDescription()
+                .resolve()
+                .readNumbersAsIndividualDigits(),
+            onItemSelectedListener = {
+                onItemSelected(paymentMethod.toPaymentSelection())
+            },
             modifier = modifier,
         )
     }
@@ -420,6 +489,8 @@ internal fun CvcRecollectionField(
         }
     }
 }
+
+internal const val SAVED_PAYMENT_OPTION_TAB_LAYOUT_TEST_TAG = "PaymentSheetSavedPaymentOptionTabLayout"
 
 @VisibleForTesting
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)

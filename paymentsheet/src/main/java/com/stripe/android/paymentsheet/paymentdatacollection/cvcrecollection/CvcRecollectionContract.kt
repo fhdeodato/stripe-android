@@ -2,9 +2,9 @@ package com.stripe.android.paymentsheet.paymentdatacollection.cvcrecollection
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Parcelable
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.core.os.BundleCompat
 import com.stripe.android.model.CardBrand
 import com.stripe.android.paymentsheet.PaymentSheet
 import kotlinx.parcelize.Parcelize
@@ -26,15 +26,12 @@ internal class CvcRecollectionContract :
         val lastFour: String,
         val cardBrand: CardBrand,
         val appearance: PaymentSheet.Appearance,
-        val isLiveMode: Boolean
+        val isTestMode: Boolean
     ) : Parcelable {
         companion object {
             fun fromIntent(intent: Intent): Args? {
-                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(EXTRA_ARGS, Args::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(EXTRA_ARGS)
+                return intent.extras?.let { bundle ->
+                    BundleCompat.getParcelable(bundle, EXTRA_ARGS, Args::class.java)
                 }
             }
         }

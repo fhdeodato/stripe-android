@@ -271,22 +271,24 @@ data class PaymentMethodCreateParams internal constructor(
     }
 
     override fun toParamMap(): Map<String, Any> {
-        return overrideParamMap
+        val params = overrideParamMap
             ?: mapOf(
                 PARAM_TYPE to code
             ).plus(
                 billingDetails?.let {
                     mapOf(PARAM_BILLING_DETAILS to it.toParamMap())
                 }.orEmpty()
-            ).plus(
-                allowRedisplay?.let {
-                    mapOf(PARAM_ALLOW_REDISPLAY to allowRedisplay.value)
-                }.orEmpty()
             ).plus(typeParams).plus(
                 metadata?.let {
                     mapOf(PARAM_METADATA to it)
                 }.orEmpty()
             )
+
+        return params.plus(
+            allowRedisplay?.let {
+                mapOf(PARAM_ALLOW_REDISPLAY to allowRedisplay.value)
+            }.orEmpty()
+        )
     }
 
     private val typeParams: Map<String, Any>
@@ -315,7 +317,7 @@ data class PaymentMethodCreateParams internal constructor(
     }
 
     @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-    fun instantDebitsPaymentMethodId(): String? {
+    fun linkBankPaymentMethodId(): String? {
         val linkParams = (toParamMap()["link"] as? Map<*, *>) ?: return null
         return linkParams["payment_method_id"] as? String
     }
@@ -714,7 +716,12 @@ data class PaymentMethodCreateParams internal constructor(
                     expiryMonth = cardParams.expMonth,
                     expiryYear = cardParams.expYear,
                     cvc = cardParams.cvc,
-                    attribution = cardParams.attribution
+                    attribution = cardParams.attribution,
+                    networks = cardParams.networks?.preferred?.let {
+                        Card.Networks(
+                            preferred = it
+                        )
+                    }
                 ),
                 billingDetails = PaymentMethod.BillingDetails(
                     name = cardParams.name,
@@ -1305,6 +1312,7 @@ data class PaymentMethodCreateParams internal constructor(
             paymentMethodId: String,
             requiresMandate: Boolean,
             productUsage: Set<String>,
+            allowRedisplay: PaymentMethod.AllowRedisplay? = null,
         ): PaymentMethodCreateParams {
             return PaymentMethodCreateParams(
                 code = PaymentMethod.Type.Link.code,
@@ -1314,6 +1322,7 @@ data class PaymentMethodCreateParams internal constructor(
                         "payment_method_id" to paymentMethodId,
                     ),
                 ),
+                allowRedisplay = allowRedisplay,
                 productUsage = productUsage,
             )
         }
@@ -1324,12 +1333,14 @@ data class PaymentMethodCreateParams internal constructor(
             billingDetails: PaymentMethod.BillingDetails?,
             requiresMandate: Boolean,
             overrideParamMap: Map<String, @RawValue Any>?,
-            productUsage: Set<String>
+            productUsage: Set<String>,
+            allowRedisplay: PaymentMethod.AllowRedisplay? = null,
         ): PaymentMethodCreateParams {
             return PaymentMethodCreateParams(
                 code = code,
                 billingDetails = billingDetails,
                 requiresMandate = requiresMandate,
+                allowRedisplay = allowRedisplay,
                 overrideParamMap = overrideParamMap,
                 productUsage = productUsage
             )

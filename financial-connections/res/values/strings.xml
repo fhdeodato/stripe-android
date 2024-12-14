@@ -6,8 +6,6 @@
     <string name="stripe_ok">OK</string>
     <string name="stripe_prepane_title">Link with %1$s</string>
     <string name="stripe_prepane_continue">Continue</string>
-    <string name="stripe_update_required_title">Update required</string>
-    <string name="stripe_update_required_desc">Next, you\'ll be prompted to log in and connect your accounts.</string>
     <string name="stripe_institutionpicker_pane_select_bank">Select bank</string>
     <string name="stripe_institutionpicker_manual_entry_title">Don’t see your bank?</string>
     <string name="stripe_institutionpicker_search_more_title">Search for more banks</string>
@@ -42,13 +40,6 @@
     </plurals>
     <string name="stripe_search">Search</string>
     <string name="stripe_account_picker_dropdown_hint">Choose one</string>
-    <string name="stripe_data_accessible_callout_stripe">Stripe can access %2$s. <annotation clickable="learn_more">Learn more</annotation></string>
-    <string name="stripe_data_accessible_callout_business">%1$s can access %2$s. <annotation clickable="learn_more">Learn more</annotation></string>
-    <string name="stripe_data_accessible_callout_no_business">This business can access %2$s. <annotation clickable="learn_more">Learn more</annotation></string>
-    <string name="stripe_data_accessible_type_accountdetails">account details</string>
-    <string name="stripe_data_accessible_type_balances">balances</string>
-    <string name="stripe_data_accessible_type_transactions">transactions</string>
-    <string name="stripe_data_accessible_type_ownership">account ownership details</string>
     <string name="stripe_success_pane_title">Success</string>
     <string name="stripe_success_pane_desc_microdeposits">You can expect micro-deposits to account ••••%1$s in 1–2 days and an email with further instructions.</string>
     <string name="stripe_success_pane_desc_microdeposits_no_account">You can expect micro-deposits to your account in 1–2 days and an email with further instructions.</string>

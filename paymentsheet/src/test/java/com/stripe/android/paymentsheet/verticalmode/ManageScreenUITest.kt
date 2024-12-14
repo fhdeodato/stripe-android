@@ -2,7 +2,9 @@ package com.stripe.android.paymentsheet.verticalmode
 
 import android.os.Build
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertAny
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasContentDescriptionExactly
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.onChildren
@@ -11,8 +13,10 @@ import androidx.compose.ui.test.performClick
 import com.google.common.truth.Truth.assertThat
 import com.stripe.android.core.strings.resolvableString
 import com.stripe.android.model.PaymentMethodFixtures
+import com.stripe.android.model.PaymentMethodFixtures.toDisplayableSavedPaymentMethod
 import com.stripe.android.paymentsheet.DisplayableSavedPaymentMethod
 import com.stripe.android.paymentsheet.ViewActionRecorder
+import com.stripe.android.testing.PaymentMethodFactory
 import com.stripe.android.ui.core.elements.TEST_TAG_DIALOG_CONFIRM_BUTTON
 import com.stripe.android.ui.core.elements.TEST_TAG_DIALOG_DISMISS_BUTTON
 import com.stripe.android.ui.core.elements.TEST_TAG_SIMPLE_DIALOG
@@ -35,7 +39,7 @@ class ManageScreenUITest {
             paymentMethods = displayableSavedPaymentMethods,
             currentSelection = null,
             isEditing = false,
-            canDelete = true,
+            canRemove = true,
             canEdit = true,
         )
     ) {
@@ -51,12 +55,34 @@ class ManageScreenUITest {
     }
 
     @Test
+    fun savedPaymentMethod_hasCorrectContentDescription() {
+        val savedCard = PaymentMethodFactory.card(last4 = "4242", addCbcNetworks = false)
+        runScenario(
+            initialState = ManageScreenInteractor.State(
+                paymentMethods = listOf(
+                    savedCard.toDisplayableSavedPaymentMethod()
+                ),
+                currentSelection = null,
+                isEditing = false,
+                canRemove = true,
+                canEdit = true,
+            )
+        ) {
+            composeRule.onNodeWithTag(
+                "${TEST_TAG_SAVED_PAYMENT_METHOD_ROW_BUTTON}_${savedCard.id}"
+            ).onChildren().assertAny(
+                hasContentDescriptionExactly("Visa ending in 4 2 4 2 ")
+            )
+        }
+    }
+
+    @Test
     fun allSavedPaymentMethodsAreShown_inEditMode() = runScenario(
         initialState = ManageScreenInteractor.State(
             paymentMethods = displayableSavedPaymentMethods,
             currentSelection = null,
             isEditing = true,
-            canDelete = true,
+            canRemove = true,
             canEdit = true,
         )
     ) {
@@ -78,7 +104,7 @@ class ManageScreenUITest {
                 paymentMethods = displayableSavedPaymentMethods,
                 currentSelection = null,
                 isEditing = false,
-                canDelete = true,
+                canRemove = true,
                 canEdit = true,
             )
         ) {
@@ -95,13 +121,33 @@ class ManageScreenUITest {
         }
 
     @Test
+    fun clickingPaymentMethod_whenInEditMode_doesNothing() =
+        runScenario(
+            initialState = ManageScreenInteractor.State(
+                paymentMethods = displayableSavedPaymentMethods,
+                currentSelection = null,
+                isEditing = true,
+                canRemove = true,
+                canEdit = true,
+            )
+        ) {
+            assertThat(viewActionRecorder.viewActions).isEmpty()
+
+            composeRule.onNodeWithTag(
+                "${TEST_TAG_SAVED_PAYMENT_METHOD_ROW_BUTTON}_${displayableSavedPaymentMethods[0].paymentMethod.id}"
+            ).performClick()
+
+            assertThat(viewActionRecorder.viewActions).isEmpty()
+        }
+
+    @Test
     fun clickingPaymentMethod_inEditMode_doesNothing() =
         runScenario(
             initialState = ManageScreenInteractor.State(
                 paymentMethods = displayableSavedPaymentMethods,
                 currentSelection = null,
                 isEditing = true,
-                canDelete = true,
+                canRemove = true,
                 canEdit = true,
             )
         ) {
@@ -120,7 +166,7 @@ class ManageScreenUITest {
             paymentMethods = displayableSavedPaymentMethods,
             currentSelection = displayableSavedPaymentMethods[1],
             isEditing = false,
-            canDelete = true,
+            canRemove = true,
             canEdit = true,
         )
     ) {
@@ -138,7 +184,7 @@ class ManageScreenUITest {
             paymentMethods = displayableSavedPaymentMethods,
             currentSelection = null,
             isEditing = true,
-            canDelete = true,
+            canRemove = true,
             canEdit = true,
         )
     ) {
@@ -157,7 +203,7 @@ class ManageScreenUITest {
             paymentMethods = listOf(cbcEligibleSavedPaymentMethod),
             currentSelection = null,
             isEditing = true,
-            canDelete = false,
+            canRemove = false,
             canEdit = true,
         )
     ) {
@@ -171,7 +217,7 @@ class ManageScreenUITest {
             paymentMethods = displayableSavedPaymentMethods,
             currentSelection = null,
             isEditing = true,
-            canDelete = true,
+            canRemove = true,
             canEdit = true,
         )
     ) {
@@ -193,7 +239,7 @@ class ManageScreenUITest {
             paymentMethods = displayableSavedPaymentMethods,
             currentSelection = null,
             isEditing = true,
-            canDelete = true,
+            canRemove = true,
             canEdit = true,
         )
     ) {
@@ -212,7 +258,7 @@ class ManageScreenUITest {
             paymentMethods = displayableSavedPaymentMethods,
             currentSelection = null,
             isEditing = true,
-            canDelete = true,
+            canRemove = true,
             canEdit = true,
         )
     ) {

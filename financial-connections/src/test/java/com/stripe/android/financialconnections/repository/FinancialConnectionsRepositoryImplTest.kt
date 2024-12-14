@@ -2,6 +2,7 @@ package com.stripe.android.financialconnections.repository
 
 import com.google.common.truth.Truth.assertThat
 import com.stripe.android.core.Logger
+import com.stripe.android.core.frauddetection.FraudDetectionDataRepository
 import com.stripe.android.core.networking.ApiRequest
 import com.stripe.android.core.networking.StripeNetworkClient
 import com.stripe.android.core.networking.StripeResponse
@@ -24,6 +25,7 @@ class FinancialConnectionsRepositoryImplTest {
 
     private val mockStripeNetworkClient = mock<StripeNetworkClient>()
     private val apiRequestFactory = ApiRequest.Factory()
+    private val fraudDetectionDataRepository = mock<FraudDetectionDataRepository>()
 
     private val financialConnectionsRepositoryImpl = FinancialConnectionsRepositoryImpl(
         requestExecutor = FinancialConnectionsRequestExecutor(
@@ -32,8 +34,11 @@ class FinancialConnectionsRepositoryImplTest {
             stripeNetworkClient = mockStripeNetworkClient,
             logger = Logger.noop(),
         ),
+        provideApiRequestOptions = {
+            ApiRequest.Options(ApiKeyFixtures.DEFAULT_PUBLISHABLE_KEY)
+        },
         apiRequestFactory = apiRequestFactory,
-        apiOptions = ApiRequest.Options(ApiKeyFixtures.DEFAULT_PUBLISHABLE_KEY)
+        fraudDetectionDataRepository = fraudDetectionDataRepository,
     )
 
     @Test

@@ -8,7 +8,7 @@ import com.stripe.android.link.LinkPaymentDetails
 import com.stripe.android.model.Address
 import com.stripe.android.model.CardBrand
 import com.stripe.android.model.ConfirmPaymentIntentParams
-import com.stripe.android.model.ConsumerPaymentDetails
+import com.stripe.android.model.LinkMode
 import com.stripe.android.model.PaymentMethod
 import com.stripe.android.model.PaymentMethod.Type.USBankAccount
 import com.stripe.android.model.PaymentMethodCreateParams
@@ -108,8 +108,9 @@ internal sealed class PaymentSelection : Parcelable {
         ): ResolvableString? {
             return when (paymentMethod.type) {
                 USBankAccount -> {
-                    USBankAccountTextBuilder.getContinueMandateText(
+                    USBankAccountTextBuilder.buildMandateAndMicrodepositsText(
                         merchantName = merchantName,
+                        isVerifyingMicrodeposits = false,
                         isSaveForFutureUseSelected = false,
                         isInstantDebits = false,
                         isSetupFlow = isSetupFlow,
@@ -183,6 +184,7 @@ internal sealed class PaymentSelection : Parcelable {
             @Parcelize
             data class InstantDebitsInfo(
                 val paymentMethodId: String,
+                val linkMode: LinkMode?,
             ) : Parcelable
 
             @Parcelize
@@ -219,16 +221,7 @@ internal sealed class PaymentSelection : Parcelable {
             val iconResource = R.drawable.stripe_ic_paymentsheet_link
 
             @IgnoredOnParcel
-            val label = when (paymentDetails) {
-                is ConsumerPaymentDetails.Card ->
-                    "····${paymentDetails.last4}"
-
-                is ConsumerPaymentDetails.BankAccount ->
-                    "····${paymentDetails.last4}"
-
-                is ConsumerPaymentDetails.Passthrough ->
-                    "····${paymentDetails.last4}"
-            }
+            val label = "····${paymentDetails.last4}"
         }
 
         @Parcelize

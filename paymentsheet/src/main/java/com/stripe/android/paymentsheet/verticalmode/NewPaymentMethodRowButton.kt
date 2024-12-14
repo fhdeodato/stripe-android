@@ -1,17 +1,21 @@
 package com.stripe.android.paymentsheet.verticalmode
 
+import androidx.annotation.RestrictTo
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import com.stripe.android.paymentsheet.ui.PaymentMethodIcon
+import com.stripe.android.paymentsheet.verticalmode.UIConstants.iconHeight
+import com.stripe.android.paymentsheet.verticalmode.UIConstants.iconWidth
 import com.stripe.android.uicore.image.StripeImageLoader
 import com.stripe.android.uicore.strings.resolve
 
-internal const val TEST_TAG_NEW_PAYMENT_METHOD_ROW_BUTTON = "TEST_TAG_NEW_PAYMENT_METHOD_ROW_BUTTON"
+@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+const val TEST_TAG_NEW_PAYMENT_METHOD_ROW_BUTTON = "TEST_TAG_NEW_PAYMENT_METHOD_ROW_BUTTON"
 
 @Composable
 internal fun NewPaymentMethodRowButton(
@@ -64,7 +68,7 @@ internal fun NewPaymentMethodRowButton(
                 iconUrl = iconUrl,
                 imageLoader = imageLoader,
                 iconRequiresTinting = iconRequiresTinting,
-                modifier = modifier.size(20.dp),
+                modifier = modifier.height(iconHeight).width(iconWidth),
                 contentAlignment = Alignment.Center,
             )
         },

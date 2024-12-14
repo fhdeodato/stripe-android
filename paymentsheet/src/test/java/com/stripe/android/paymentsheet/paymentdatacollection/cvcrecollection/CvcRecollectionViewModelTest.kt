@@ -3,33 +3,23 @@ package com.stripe.android.paymentsheet.paymentdatacollection.cvcrecollection
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.stripe.android.model.CardBrand
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
+import com.stripe.android.testing.CoroutineTestRule
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.After
-import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 class CvcRecollectionViewModelTest {
-    @Before
-    fun setup() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
-    }
 
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    @get:Rule
+    val coroutineTestRule = CoroutineTestRule()
 
-    private fun createViewModel(): CvcRecollectionViewModel {
+    private fun createViewModel(cvc: String = ""): CvcRecollectionViewModel {
         return CvcRecollectionViewModel(
-            CvcRecollectionViewModel.Args(
+            args = Args(
                 lastFour = "4242",
                 cardBrand = CardBrand.Visa,
-                cvc = null,
-                isLiveMode = false
+                cvc = cvc,
+                isTestMode = false
             )
         )
     }
@@ -38,22 +28,22 @@ class CvcRecollectionViewModelTest {
     fun `view model state initialized properly on init`() {
         val viewModel = createViewModel()
 
-        assertThat(viewModel.viewState.value).isEqualTo(
-            CvcRecollectionViewState(
-                cardBrand = CardBrand.Visa,
-                lastFour = "4242",
-                cvc = null,
-                isLiveMode = false
+        assertThat(viewModel.viewState.value.cvcState).isEqualTo(
+            CvcState(
+                cvc = "",
+                cardBrand = CardBrand.Visa
             )
         )
+        assertThat(viewModel.viewState.value.lastFour).isEqualTo("4242")
+        assertThat(viewModel.viewState.value.isTestMode).isEqualTo(false)
     }
 
     @Test
     fun `on confirm pressed viewModel emits confirmed result`() = runTest {
-        val viewModel = createViewModel()
+        val viewModel = createViewModel("555")
 
         viewModel.result.test {
-            viewModel.handleViewAction(CvcRecollectionViewAction.OnConfirmPressed("555"))
+            viewModel.handleViewAction(CvcRecollectionViewAction.OnConfirmPressed)
 
             assertThat(awaitItem()).isEqualTo(CvcRecollectionResult.Confirmed("555"))
         }

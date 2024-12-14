@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.Icon
-import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
@@ -36,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType.Companion.LongPress
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -68,6 +66,7 @@ import com.stripe.android.financialconnections.ui.components.FinancialConnection
 import com.stripe.android.financialconnections.ui.components.StringAnnotation
 import com.stripe.android.financialconnections.ui.theme.FinancialConnectionsTheme
 import com.stripe.android.financialconnections.ui.theme.FinancialConnectionsTheme.typography
+import com.stripe.android.uicore.text.MiddleEllipsisText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -124,8 +123,8 @@ private fun SuccessContentInternal(
             .padding(24.dp),
     ) {
         SpinnerToSuccessAnimation(
-            customSuccessMessage = payload?.customSuccessMessage,
-            accountsCount = payload?.accountsCount ?: 0,
+            content = payload?.content,
+            title = payload?.title,
             showSpinner = showSpinner || payload == null,
             initialSuccessBodyHeight = overrideSuccessBodyHeightForPreview,
         )
@@ -150,8 +149,8 @@ private fun SuccessContentInternal(
 private fun SpinnerToSuccessAnimation(
     showSpinner: Boolean,
     initialSuccessBodyHeight: Dp?,
-    accountsCount: Int,
-    customSuccessMessage: TextResource?,
+    content: TextResource?,
+    title: TextResource?,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -213,8 +212,8 @@ private fun SpinnerToSuccessAnimation(
             enter = SUCCESS_SLIDE_IN_ANIMATION,
         ) {
             SuccessBody(
-                customSuccessMessage = customSuccessMessage,
-                accountsCount = accountsCount,
+                content = content,
+                title = title,
                 modifier = Modifier.onGloballyPositioned {
                     successBodyHeight = with(density) { it.size.height.toDp() }
                 },
@@ -241,7 +240,7 @@ private fun SuccessFooter(
             .testTag("done_button")
             .fillMaxWidth()
     ) {
-        Text(
+        MiddleEllipsisText(
             text = when (merchantName) {
                 null -> stringResource(id = R.string.stripe_success_pane_done)
                 else -> stringResource(id = R.string.stripe_success_pane_done_with_merchant, merchantName)
@@ -274,7 +273,7 @@ private fun SpinnerToCheckmark(
             contentAlignment = Alignment.Center,
             modifier = modifier
                 .size(ICON_SIZE.dp)
-                .background(FinancialConnectionsTheme.colors.iconBrand, CircleShape)
+                .background(FinancialConnectionsTheme.colors.buttonPrimary, CircleShape)
         ) {
             Icon(
                 modifier = Modifier.graphicsLayer {
@@ -283,7 +282,7 @@ private fun SpinnerToCheckmark(
                 },
                 imageVector = Icons.Default.Check,
                 contentDescription = stringResource(id = R.string.stripe_success_pane_title),
-                tint = Color.White,
+                tint = FinancialConnectionsTheme.colors.contentOnBrand,
             )
         }
     }
@@ -291,8 +290,8 @@ private fun SpinnerToCheckmark(
 
 @Composable
 private fun SuccessBody(
-    customSuccessMessage: TextResource?,
-    accountsCount: Int,
+    content: TextResource?,
+    title: TextResource?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -300,27 +299,30 @@ private fun SuccessBody(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier,
     ) {
-        Text(
-            text = stringResource(R.string.stripe_success_pane_title),
-            style = typography.headingXLarge,
-            textAlign = TextAlign.Center
-        )
+        title?.let {
+            AnnotatedText(
+                text = it,
+                defaultStyle = typography.headingXLarge.copy(
+                    textAlign = TextAlign.Center
+                ),
+                onClickableTextClick = {}
+            )
+        }
 
-        AnnotatedText(
-            text = customSuccessMessage ?: TextResource.PluralId(
-                value = R.plurals.stripe_success_pane_desc,
-                count = accountsCount,
-            ),
-            defaultStyle = typography.bodyMedium.copy(
-                textAlign = TextAlign.Center
-            ),
-            annotationStyles = mapOf(
-                StringAnnotation.BOLD to typography.bodyMediumEmphasized.copy(
-                    textAlign = TextAlign.Center,
-                ).toSpanStyle()
-            ),
-            onClickableTextClick = {}
-        )
+        content?.let {
+            AnnotatedText(
+                text = content,
+                defaultStyle = typography.bodyMedium.copy(
+                    textAlign = TextAlign.Center
+                ),
+                annotationStyles = mapOf(
+                    StringAnnotation.BOLD to typography.bodyMediumEmphasized.copy(
+                        textAlign = TextAlign.Center,
+                    ).toSpanStyle()
+                ),
+                onClickableTextClick = {}
+            )
+        }
     }
 }
 
@@ -352,7 +354,7 @@ internal fun SuccessScreenAnimationCompletedPreview(
 ) {
     FinancialConnectionsPreview {
         val configuration = LocalConfiguration.current
-        val successBodyHeight = calculateBodyHeightForPreview(configuration, state)
+        val successBodyHeight = calculateBodyHeightForPreview(configuration)
 
         SuccessContentInternal(
             overrideAnimationForPreview = true,
@@ -364,11 +366,11 @@ internal fun SuccessScreenAnimationCompletedPreview(
     }
 }
 
-private fun calculateBodyHeightForPreview(config: Configuration, state: SuccessState): Dp {
+private fun calculateBodyHeightForPreview(config: Configuration): Dp {
     // We need to manually calculate this for our screenshot tests, as we've been unable to
     // delay the capture until the offset animation finishes.
     val isPhone = config.orientation == Configuration.ORIENTATION_PORTRAIT
-    return if (state.payload()?.customSuccessMessage != null && isPhone) {
+    return if (isPhone) {
         120.dp
     } else {
         72.dp

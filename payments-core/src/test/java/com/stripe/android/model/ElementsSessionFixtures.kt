@@ -117,7 +117,7 @@ internal object ElementsSessionFixtures {
         """.trimIndent()
     )
 
-    val EXPANDED_SETUP_INTENT_JSON_WITH_CBC_ELIGIBLE = JSONObject(
+    val EXPANDED_SETUP_INTENT_JSON_WITH_CBC_ELIGIBLE_BUT_NO_NETWORKS = JSONObject(
         """
         {
           "business_name": "Mybusiness",
@@ -166,134 +166,139 @@ internal object ElementsSessionFixtures {
         """.trimIndent()
     )
 
-    val EXPANDED_PAYMENT_INTENT_WITH_CUSTOMER_SESSION = JSONObject(
-        """
-        {
-          "business_name": "Mybusiness",
-          "link_settings": {
-            "link_bank_enabled": false,
-            "link_bank_onboarding_enabled": false
-          },
-          "merchant_country": "US",
-          "payment_method_preference": {
-            "object": "payment_method_preference",
-            "country_code": "US",
-            "ordered_payment_method_types": [
-              "card",
-              "ideal",
-              "sepa_debit",
-              "bancontact",
-              "sofort"
-            ],
-            "payment_intent": {
-              "id": "pi_123",
-              "object": "payment_intent",
-              "amount": 973,
-              "canceled_at": null,
-              "cancellation_reason": null,
-              "capture_method": "automatic",
-              "client_secret": "pi_1234567",
-              "confirmation_method": "automatic",
-              "created": 1630103948,
-              "currency": "eur",
-              "description": null,
-              "last_payment_error": null,
-              "livemode": false,
-              "next_action": null,
-              "payment_method": null,
-              "payment_method_types": [
-                "bancontact",
-                "card",
-                "sepa_debit",
-                "sofort",
-                "ideal"
-              ],
-              "receipt_email": null,
-              "setup_future_usage": null,
-              "shipping": {
-                "address": {
-                  "city": "San Francisco",
-                  "country": "US",
-                  "line1": "510 Townsend St",
-                  "line2": null,
-                  "postal_code": "94102",
-                  "state": "California"
-                },
-                "carrier": null,
-                "name": "Bruno",
-                "phone": null,
-                "tracking_number": null
+    fun createPaymentIntentWithCustomerSession(
+        allowRedisplay: String? = "limited"
+    ): JSONObject {
+        return JSONObject(
+            """
+            {
+              "business_name": "Mybusiness",
+              "link_settings": {
+                "link_bank_enabled": false,
+                "link_bank_onboarding_enabled": false
               },
-              "source": null,
-              "status": "requires_payment_method"
-            },
-            "type": "payment_intent"
-          },
-          "customer": {
-            "customer_session": {
-              "id": "cuss_123",
-              "object": "customer_session",
-              "api_key": "ek_test_1234",
-              "api_key_expiry": 1713890664,
-              "components": {
-                "buy_button": {
-                  "enabled": false
-                },
-                "payment_element": {
-                  "enabled": false,
-                  "features": null
-                },
-                "payment_sheet": {
-                  "enabled": true,
-                  "features": {
-                    "payment_method_remove": "enabled",
-                    "payment_method_save": "disabled"
-                  }
-                },
-                "customer_sheet": {
-                  "enabled": false,
-                  "features": null
-                },
-                "pricing_table": {
-                  "enabled": false
-                }
-              },
-              "customer": "cus_1",
-              "livemode": false
-            },
-            "default_payment_method": "pm_123",
-            "payment_methods": [
-              {
-                "id": "pm_123",
-                "created": 1550757934255,
-                "customer": "cus_1",
-                "livemode": false,
-                "metadata": null,
-                "type": "card",
-                "billing_details": null,
-                "card": {
-                  "brand": "visa",
-                  "checks": {
-                    "address_line1_check": "unchecked",
-                    "cvc_check": "unchecked"
+              "merchant_country": "US",
+              "payment_method_preference": {
+                "object": "payment_method_preference",
+                "country_code": "US",
+                "ordered_payment_method_types": [
+                  "card",
+                  "ideal",
+                  "sepa_debit",
+                  "bancontact",
+                  "sofort"
+                ],
+                "payment_intent": {
+                  "id": "pi_123",
+                  "object": "payment_intent",
+                  "amount": 973,
+                  "canceled_at": null,
+                  "cancellation_reason": null,
+                  "capture_method": "automatic",
+                  "client_secret": "pi_1234567",
+                  "confirmation_method": "automatic",
+                  "created": 1630103948,
+                  "currency": "eur",
+                  "description": null,
+                  "last_payment_error": null,
+                  "livemode": false,
+                  "next_action": null,
+                  "payment_method": null,
+                  "payment_method_types": [
+                    "bancontact",
+                    "card",
+                    "sepa_debit",
+                    "sofort",
+                    "ideal"
+                  ],
+                  "receipt_email": null,
+                  "setup_future_usage": null,
+                  "shipping": {
+                    "address": {
+                      "city": "San Francisco",
+                      "country": "US",
+                      "line1": "510 Townsend St",
+                      "line2": null,
+                      "postal_code": "94102",
+                      "state": "California"
+                    },
+                    "carrier": null,
+                    "name": "Bruno",
+                    "phone": null,
+                    "tracking_number": null
                   },
-                  "country": "US",
-                  "exp_month": 8,
-                  "exp_year": 2032,
-                  "funding": "credit",
-                  "fingerprint": "fingerprint123",
-                  "last4": "4242",
-                  "three_d_secure_usage": {
-                    "supported": true
+                  "source": null,
+                  "status": "requires_payment_method"
+                },
+                "type": "payment_intent"
+              },
+              "customer": {
+                "customer_session": {
+                  "id": "cuss_123",
+                  "object": "customer_session",
+                  "api_key": "ek_test_1234",
+                  "api_key_expiry": 1713890664,
+                  "components": {
+                    "buy_button": {
+                      "enabled": false
+                    },
+                    "payment_element": {
+                      "enabled": false,
+                      "features": null
+                    },
+                    "mobile_payment_element": {
+                      "enabled": true,
+                      "features": {
+                        "payment_method_remove": "enabled",
+                        "payment_method_save": "disabled",
+                        "payment_method_save_allow_redisplay_override": ${allowRedisplay?.let { "\"$it\""} ?: "null"}
+                      }
+                    },
+                    "customer_sheet": {
+                      "enabled": false,
+                      "features": null
+                    },
+                    "pricing_table": {
+                      "enabled": false
+                    }
+                  },
+                  "customer": "cus_1",
+                  "livemode": false
+                },
+                "default_payment_method": "pm_123",
+                "payment_methods": [
+                  {
+                    "id": "pm_123",
+                    "created": 1550757934255,
+                    "customer": "cus_1",
+                    "livemode": false,
+                    "metadata": null,
+                    "type": "card",
+                    "billing_details": null,
+                    "card": {
+                      "brand": "visa",
+                      "checks": {
+                        "address_line1_check": "unchecked",
+                        "cvc_check": "unchecked"
+                      },
+                      "country": "US",
+                      "exp_month": 8,
+                      "exp_year": 2032,
+                      "funding": "credit",
+                      "fingerprint": "fingerprint123",
+                      "last4": "4242",
+                      "three_d_secure_usage": {
+                        "supported": true
+                      }
+                    }
                   }
-                }
+                ],
+                "payment_methods_with_link_details": []
               }
-            ],
-            "payment_methods_with_link_details": []
-          }
-        }
-        """.trimIndent()
-    )
+            }
+            """.trimIndent()
+        )
+    }
 
     val EXPANDED_PAYMENT_INTENT_WITH_CUSTOMER_SESSION_AND_CUSTOMER_SHEET_COMPONENT = JSONObject(
         """
@@ -372,7 +377,7 @@ internal object ElementsSessionFixtures {
                   "enabled": false,
                   "features": null
                 },
-                "payment_sheet": {
+                "mobile_payment_element": {
                   "enabled": false,
                   "features": null
                 },
@@ -428,7 +433,8 @@ internal object ElementsSessionFixtures {
         {
           "business_name": "Mybusiness",
           "card_brand_choice": {
-            "eligible": true
+            "eligible": true,
+            "preferred_networks": ["cartes_bancaires"]
           },
           "link_settings": {
             "link_bank_enabled": false,
@@ -498,7 +504,8 @@ internal object ElementsSessionFixtures {
         {
           "business_name": "Mybusiness",
           "card_brand_choice": {
-            "eligible": false
+            "eligible": false,
+            "preferred_networks": ["cartes_bancaires"]
           },
           "link_settings": {
             "link_bank_enabled": false,
@@ -909,7 +916,7 @@ internal object ElementsSessionFixtures {
                   "currency": "aud",
                   "description": null,
                   "last_payment_error": null,
-                  "livemode": false,
+                  "livemode": true,
                   "next_action": null,
                   "payment_method": null,
                   "payment_method_types": [
@@ -1361,7 +1368,6 @@ internal object ElementsSessionFixtures {
                     "elements_enable_external_payment_method_walley": false,
                     "elements_enable_external_payment_method_wechat_mobile": false,
                     "elements_enable_external_payment_method_younitedpay": false,
-                    "elements_enable_external_payment_methods": true,
                     "elements_enable_klarna_unified_offer": true,
                     "elements_enable_link_spm": true,
                     "elements_enable_mobilepay": false,
@@ -1375,7 +1381,6 @@ internal object ElementsSessionFixtures {
                     "elements_enable_south_korea_market_underlying_pms": false,
                     "elements_enable_use_last_used_payment_method": false,
                     "elements_enable_write_allow_redisplay": false,
-                    "elements_luxe_qr_ui_on_web_enabled": false,
                     "elements_saved_payment_methods": true,
                     "elements_stop_move_focus_to_first_errored_field": true,
                     "elements_web_lpm_server_driven_ui": true,

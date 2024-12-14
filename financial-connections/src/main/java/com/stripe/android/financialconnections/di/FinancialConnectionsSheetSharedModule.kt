@@ -3,6 +3,7 @@ package com.stripe.android.financialconnections.di
 import android.app.Application
 import com.stripe.android.core.ApiVersion
 import com.stripe.android.core.Logger
+import com.stripe.android.core.frauddetection.FraudDetectionDataRepository
 import com.stripe.android.core.injection.IOContext
 import com.stripe.android.core.injection.STRIPE_ACCOUNT_ID
 import com.stripe.android.core.networking.AnalyticsRequestExecutor
@@ -25,9 +26,15 @@ import com.stripe.android.financialconnections.analytics.FinancialConnectionsAna
 import com.stripe.android.financialconnections.analytics.FinancialConnectionsAnalyticsTrackerImpl
 import com.stripe.android.financialconnections.analytics.FinancialConnectionsEventReporter
 import com.stripe.android.financialconnections.domain.GetOrFetchSync
+import com.stripe.android.financialconnections.domain.IsLinkWithStripe
+import com.stripe.android.financialconnections.domain.RealIsLinkWithStripe
 import com.stripe.android.financialconnections.features.common.enableWorkManager
+import com.stripe.android.financialconnections.repository.ConsumerSessionProvider
+import com.stripe.android.financialconnections.repository.ConsumerSessionRepository
 import com.stripe.android.financialconnections.repository.FinancialConnectionsRepository
 import com.stripe.android.financialconnections.repository.FinancialConnectionsRepositoryImpl
+import com.stripe.android.financialconnections.repository.RealConsumerSessionRepository
+import com.stripe.android.financialconnections.utils.DefaultFraudDetectionDataRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -65,6 +72,17 @@ internal interface FinancialConnectionsSheetSharedModule {
     @Binds
     @Singleton
     fun bindsAnalyticsRequestV2Executor(impl: DefaultAnalyticsRequestV2Executor): AnalyticsRequestV2Executor
+
+    @Binds
+    @Singleton
+    fun bindsConsumerSessionRepository(impl: RealConsumerSessionRepository): ConsumerSessionRepository
+
+    @Binds
+    @Singleton
+    fun bindsConsumerSessionProvider(impl: RealConsumerSessionRepository): ConsumerSessionProvider
+
+    @Binds
+    fun bindsIsLinkWithStripe(impl: RealIsLinkWithStripe): IsLinkWithStripe
 
     companion object {
 
@@ -166,6 +184,13 @@ internal interface FinancialConnectionsSheetSharedModule {
         @Singleton
         internal fun providesIoDispatcher(): CoroutineDispatcher {
             return Dispatchers.IO
+        }
+
+        @Provides
+        internal fun provideFraudDetectionDataRepository(
+            application: Application,
+        ): FraudDetectionDataRepository {
+            return DefaultFraudDetectionDataRepository(application)
         }
     }
 }

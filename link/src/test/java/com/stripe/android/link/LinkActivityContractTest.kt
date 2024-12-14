@@ -4,7 +4,6 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.link.model.StripeIntentFixtures
-import com.stripe.android.link.ui.inline.LinkSignupMode
 import com.stripe.android.networking.StripeRepository
 import org.junit.After
 import org.junit.Before
@@ -44,9 +43,9 @@ class LinkActivityContractTest {
                 billingCountryCode = "US",
             ),
             shippingValues = null,
-            signupMode = LinkSignupMode.InsteadOfSaveForFutureUse,
             passthroughModeEnabled = false,
             flags = emptyMap(),
+            cardBrandChoice = null,
         )
 
         val args = LinkActivityContract.Args(

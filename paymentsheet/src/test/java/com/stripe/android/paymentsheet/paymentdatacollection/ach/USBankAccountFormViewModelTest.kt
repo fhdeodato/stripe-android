@@ -7,12 +7,15 @@ import com.google.common.truth.Truth.assertThat
 import com.stripe.android.ApiKeyFixtures
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.core.strings.resolvableString
+import com.stripe.android.financialconnections.FinancialConnectionsSheet.ElementsSessionContext
 import com.stripe.android.financialconnections.model.BankAccount
 import com.stripe.android.financialconnections.model.FinancialConnectionsAccount
 import com.stripe.android.financialconnections.model.FinancialConnectionsSession
 import com.stripe.android.isInstanceOf
+import com.stripe.android.lpmfoundations.paymentmethod.PaymentMethodSaveConsentBehavior
 import com.stripe.android.model.Address
 import com.stripe.android.model.ConfirmPaymentIntentParams
+import com.stripe.android.model.LinkMode
 import com.stripe.android.model.PaymentIntent
 import com.stripe.android.model.PaymentMethod
 import com.stripe.android.model.PaymentMethodOptionsParams
@@ -59,6 +62,8 @@ class USBankAccountFormViewModelTest {
                 email = CUSTOMER_EMAIL
             ),
             cbcEligibility = CardBrandChoiceEligibility.Ineligible,
+            hasIntentToSetup = false,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
         ),
         showCheckbox = false,
         isCompleteFlow = true,
@@ -69,6 +74,7 @@ class USBankAccountFormViewModelTest {
         savedPaymentMethod = null,
         shippingDetails = null,
         hostedSurface = CollectBankAccountLauncher.HOSTED_SURFACE_PAYMENT_ELEMENT,
+        linkMode = null,
     )
 
     private val mockCollectBankAccountLauncher = mock<CollectBankAccountLauncher>()
@@ -389,6 +395,21 @@ class USBankAccountFormViewModelTest {
 
     @Test
     fun `Restores screen state when re-opening screen`() = runTest {
+        val continueMandate = USBankAccountTextBuilder.buildMandateText(
+            merchantName = MERCHANT_NAME,
+            isSaveForFutureUseSelected = true,
+            isInstantDebits = false,
+            isSetupFlow = false,
+        )
+
+        val continueWithMicrodepositsMandate = USBankAccountTextBuilder.buildMandateAndMicrodepositsText(
+            merchantName = MERCHANT_NAME,
+            isVerifyingMicrodeposits = true,
+            isSaveForFutureUseSelected = true,
+            isInstantDebits = false,
+            isSetupFlow = false,
+        )
+
         val screenStates = listOf(
             USBankAccountFormScreenState.BillingDetailsCollection(
                 primaryButtonText = "Continue".resolvableString,
@@ -400,7 +421,7 @@ class USBankAccountFormViewModelTest {
                 bankName = "Stripe Bank",
                 last4 = null,
                 primaryButtonText = "Continue".resolvableString,
-                mandateText = null,
+                mandateText = continueMandate,
             ),
             USBankAccountFormScreenState.VerifyWithMicrodeposits(
                 financialConnectionsSessionId = "session_1234",
@@ -410,7 +431,7 @@ class USBankAccountFormViewModelTest {
                     last4 = "6789",
                 ),
                 primaryButtonText = "Continue".resolvableString,
-                mandateText = null,
+                mandateText = continueWithMicrodepositsMandate,
             ),
             USBankAccountFormScreenState.SavedAccount(
                 financialConnectionsSessionId = "session_1234",
@@ -418,7 +439,7 @@ class USBankAccountFormViewModelTest {
                 bankName = "Stripe Bank",
                 last4 = "6789",
                 primaryButtonText = "Continue".resolvableString,
-                mandateText = null,
+                mandateText = continueMandate,
             ),
         )
 
@@ -957,7 +978,7 @@ class USBankAccountFormViewModelTest {
             viewModel.handlePrimaryButtonClick(viewModel.currentScreenState.value)
             viewModel.reset()
 
-            assertThat(awaitItem())
+            assertThat(expectMostRecentItem())
                 .isInstanceOf<USBankAccountFormScreenState.BillingDetailsCollection>()
         }
     }
@@ -1040,7 +1061,10 @@ class USBankAccountFormViewModelTest {
     @Test
     fun `Uses CollectBankAccountLauncher for Instant Debits when in Instant Debits flow`() {
         val viewModel = createViewModel(
-            args = defaultArgs.copy(instantDebits = true),
+            args = defaultArgs.copy(
+                instantDebits = true,
+                linkMode = LinkMode.LinkCardBrand,
+            ),
         ).apply {
             this.collectBankAccountLauncher = mockCollectBankAccountLauncher
         }
@@ -1057,9 +1081,290 @@ class USBankAccountFormViewModelTest {
             configuration = eq(
                 CollectBankAccountConfiguration.InstantDebits(
                     email = "email@email.com",
+                    elementsSessionContext = ElementsSessionContext(
+                        initializationMode = ElementsSessionContext.InitializationMode.PaymentIntent("id_12345"),
+                        amount = 5099,
+                        currency = "usd",
+                        linkMode = LinkMode.LinkCardBrand,
+                    ),
                 )
             ),
         )
+    }
+
+    @Test
+    fun `Produces correct mandate text when not using microdeposits verification`() = runTest {
+        val viewModel = createViewModel()
+
+        val expectedResult = USBankAccountTextBuilder.buildMandateText(
+            merchantName = MERCHANT_NAME,
+            isSaveForFutureUseSelected = false,
+            isSetupFlow = false,
+            isInstantDebits = false,
+        )
+
+        viewModel.currentScreenState.test {
+            assertThat(awaitItem()).isInstanceOf<USBankAccountFormScreenState.BillingDetailsCollection>()
+
+            val verifiedAccount = mockVerifiedBankAccount()
+            viewModel.handleCollectBankAccountResult(verifiedAccount)
+
+            val mandateCollectionViewState = awaitItem()
+            assertThat(mandateCollectionViewState.mandateText).isEqualTo(expectedResult)
+        }
+    }
+
+    @Test
+    fun `Produces correct mandate text when using microdeposits verification`() = runTest {
+        val viewModel = createViewModel()
+
+        val expectedResult = USBankAccountTextBuilder.buildMandateAndMicrodepositsText(
+            merchantName = MERCHANT_NAME,
+            isVerifyingMicrodeposits = true,
+            isSaveForFutureUseSelected = false,
+            isSetupFlow = false,
+            isInstantDebits = false,
+        )
+
+        viewModel.currentScreenState.test {
+            assertThat(awaitItem()).isInstanceOf<USBankAccountFormScreenState.BillingDetailsCollection>()
+
+            val unverifiedAccount = mockUnverifiedBankAccount()
+            viewModel.handleCollectBankAccountResult(unverifiedAccount)
+
+            val mandateCollectionViewState = awaitItem()
+            assertThat(mandateCollectionViewState.mandateText).isEqualTo(expectedResult)
+        }
+    }
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Legacy, not setting up, and no checkbox`() =
+        testAllowRedisplay(
+            showCheckbox = false,
+            shouldSave = true,
+            hasIntentForSetup = false,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.UNSPECIFIED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Legacy, not setting up, and should not save`() =
+        testAllowRedisplay(
+            showCheckbox = true,
+            shouldSave = false,
+            hasIntentForSetup = false,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.UNSPECIFIED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Legacy, not setting up, and should save`() =
+        testAllowRedisplay(
+            showCheckbox = true,
+            shouldSave = true,
+            hasIntentForSetup = false,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.UNSPECIFIED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Legacy, setting up, and no checkbox`() =
+        testAllowRedisplay(
+            showCheckbox = false,
+            shouldSave = true,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.UNSPECIFIED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Legacy, setting up, and should not save`() =
+        testAllowRedisplay(
+            showCheckbox = true,
+            shouldSave = false,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.UNSPECIFIED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Legacy, setting up, and should save`() =
+        testAllowRedisplay(
+            showCheckbox = true,
+            shouldSave = true,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.UNSPECIFIED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Enabled, not setting up, and no checkbox`() =
+        testAllowRedisplay(
+            showCheckbox = false,
+            shouldSave = true,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.LIMITED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Enabled, not setting up, and should not save`() =
+        testAllowRedisplay(
+            showCheckbox = true,
+            shouldSave = false,
+            hasIntentForSetup = false,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.UNSPECIFIED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Always when save behavior is Enabled, not setting up, and should save`() =
+        testAllowRedisplay(
+            showCheckbox = true,
+            shouldSave = true,
+            hasIntentForSetup = false,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.ALWAYS,
+        )
+
+    @Test
+    fun `allowRedisplay returns Limited when save behavior is Enabled, setting up, and no checkbox`() =
+        testAllowRedisplay(
+            showCheckbox = false,
+            shouldSave = true,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.LIMITED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Limited when save behavior is Enabled, setting up, and should not save`() =
+        testAllowRedisplay(
+            showCheckbox = true,
+            shouldSave = false,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.LIMITED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Always when save behavior is Enabled, setting up, and should save`() =
+        testAllowRedisplay(
+            showCheckbox = true,
+            shouldSave = true,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.ALWAYS,
+        )
+
+    @Test
+    fun `allowRedisplay returns Unspecified when save behavior is Disabled and not setting up`() =
+        testAllowRedisplay(
+            showCheckbox = false,
+            shouldSave = true,
+            hasIntentForSetup = false,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Disabled(
+                overrideAllowRedisplay = null,
+            ),
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.UNSPECIFIED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Limited when save behavior is Disabled and setting up`() =
+        testAllowRedisplay(
+            showCheckbox = false,
+            shouldSave = true,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Disabled(
+                overrideAllowRedisplay = null,
+            ),
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.LIMITED,
+        )
+
+    @Test
+    fun `allowRedisplay returns Always when save behavior is Disabled, setting up, and has redisplay override`() =
+        testAllowRedisplay(
+            showCheckbox = false,
+            shouldSave = true,
+            hasIntentForSetup = true,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Disabled(
+                overrideAllowRedisplay = PaymentMethod.AllowRedisplay.ALWAYS,
+            ),
+            expectedAllowRedisplay = PaymentMethod.AllowRedisplay.ALWAYS,
+        )
+
+    private fun testAllowRedisplay(
+        showCheckbox: Boolean,
+        shouldSave: Boolean,
+        hasIntentForSetup: Boolean,
+        paymentMethodSaveConsentBehavior: PaymentMethodSaveConsentBehavior,
+        expectedAllowRedisplay: PaymentMethod.AllowRedisplay,
+    ) {
+        testAllowRedisplay(
+            isInstantDebits = true,
+            showCheckbox = showCheckbox,
+            shouldSave = shouldSave,
+            hasIntentForSetup = hasIntentForSetup,
+            paymentMethodSaveConsentBehavior = paymentMethodSaveConsentBehavior,
+            expectedAllowRedisplay = expectedAllowRedisplay,
+        )
+
+        testAllowRedisplay(
+            isInstantDebits = false,
+            showCheckbox = showCheckbox,
+            shouldSave = shouldSave,
+            hasIntentForSetup = hasIntentForSetup,
+            paymentMethodSaveConsentBehavior = paymentMethodSaveConsentBehavior,
+            expectedAllowRedisplay = expectedAllowRedisplay,
+        )
+    }
+
+    private fun testAllowRedisplay(
+        isInstantDebits: Boolean,
+        showCheckbox: Boolean,
+        shouldSave: Boolean,
+        hasIntentForSetup: Boolean,
+        paymentMethodSaveConsentBehavior: PaymentMethodSaveConsentBehavior,
+        expectedAllowRedisplay: PaymentMethod.AllowRedisplay,
+    ) = runTest {
+        val viewModel = createViewModel(
+            defaultArgs.copy(
+                showCheckbox = showCheckbox,
+                formArgs = defaultArgs.formArgs.copy(
+                    hasIntentToSetup = hasIntentForSetup,
+                    paymentMethodSaveConsentBehavior = paymentMethodSaveConsentBehavior,
+                )
+            )
+        )
+
+        viewModel.result.test {
+            viewModel.handleCollectBankAccountResult(mockVerifiedBankAccount())
+
+            viewModel.saveForFutureUseElement.controller.onValueChange(shouldSave)
+
+            viewModel.handlePrimaryButtonClick(
+                USBankAccountFormScreenState.MandateCollection(
+                    intentId = "pm_1",
+                    bankName = "Test bank",
+                    last4 = "1456",
+                    mandateText = resolvableString("Save"),
+                    primaryButtonText = resolvableString("Confirm"),
+                    resultIdentifier = when (isInstantDebits) {
+                        true -> USBankAccountFormScreenState.ResultIdentifier.PaymentMethod(id = "pm_1")
+                        false -> USBankAccountFormScreenState.ResultIdentifier.Session(id = "session_1")
+                    }
+                )
+            )
+
+            assertThat(awaitItem()?.paymentMethodCreateParams?.toParamMap()).containsEntry(
+                "allow_redisplay",
+                when (expectedAllowRedisplay) {
+                    PaymentMethod.AllowRedisplay.UNSPECIFIED -> "unspecified"
+                    PaymentMethod.AllowRedisplay.LIMITED -> "limited"
+                    PaymentMethod.AllowRedisplay.ALWAYS -> "always"
+                }
+            )
+        }
     }
 
     private fun createViewModel(

@@ -50,8 +50,9 @@ import com.stripe.android.uicore.shouldUseDarkDynamicColor
 const val SAVED_PAYMENT_METHOD_CARD_TEST_TAG = "SAVED_PAYMENT_METHOD_CARD_TEST_TAG"
 
 internal const val TEST_TAG_REMOVE_BADGE = "remove_badge"
+internal const val TEST_TAG_MODIFY_BADGE = "modify_badge"
 
-private const val EDIT_ICON_SCALE = 0.6f
+private const val EDIT_ICON_SCALE = 0.9f
 private val editIconColorLight = Color(0x99000000)
 private val editIconColorDark = Color.White
 private val editIconBackgroundColorLight = Color(0xFFE5E5EA)
@@ -67,6 +68,7 @@ internal fun SavedPaymentMethodTab(
     isSelected: Boolean,
     editState: PaymentOptionEditState,
     isEnabled: Boolean,
+    isClickable: Boolean = isEnabled,
     iconRes: Int,
     modifier: Modifier = Modifier,
     iconTint: Color? = null,
@@ -98,7 +100,7 @@ internal fun SavedPaymentMethodTab(
             Column {
                 SavedPaymentMethodCard(
                     isSelected = isSelected,
-                    isEnabled = isEnabled,
+                    isClickable = isClickable,
                     labelText = labelText,
                     iconRes = iconRes,
                     iconTint = iconTint,
@@ -113,10 +115,7 @@ internal fun SavedPaymentMethodTab(
                     modifier = Modifier
                         .padding(top = 4.dp, start = 6.dp, end = 6.dp)
                         .semantics {
-                            // This makes the screen reader read out numbers digit by digit
-                            // one one one one vs one thousand one hundred eleven
-                            this.contentDescription =
-                                description.replace("\\d".toRegex(), "$0 ")
+                            contentDescription = description.readNumbersAsIndividualDigits()
                         }
                 )
             }
@@ -173,7 +172,7 @@ private fun SavedPaymentMethodBadge(
 @Composable
 private fun SavedPaymentMethodCard(
     isSelected: Boolean,
-    isEnabled: Boolean,
+    isClickable: Boolean,
     iconRes: Int,
     iconTint: Color?,
     labelText: String,
@@ -195,7 +194,7 @@ private fun SavedPaymentMethodCard(
                 .testTag("${SAVED_PAYMENT_METHOD_CARD_TEST_TAG}_$labelText")
                 .selectable(
                     selected = isSelected,
-                    enabled = isEnabled,
+                    enabled = isClickable,
                     onClick = onItemSelectedListener,
                 ),
         ) {
@@ -267,7 +266,8 @@ private fun ModifyBadge(
             .size(20.dp)
             .clip(CircleShape)
             .background(color = backgroundColor)
-            .clickable(onClick = onPressed),
+            .clickable(onClick = onPressed)
+            .testTag(TEST_TAG_MODIFY_BADGE),
     )
 }
 

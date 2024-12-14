@@ -7,13 +7,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider.getApplicationContext
 import com.google.common.truth.Truth.assertThat
-import com.stripe.android.link.ui.inline.LinkSignupMode
 import com.stripe.android.lpmfoundations.paymentmethod.PaymentMethodMetadataFactory
+import com.stripe.android.lpmfoundations.paymentmethod.PaymentMethodSaveConsentBehavior
 import com.stripe.android.model.PaymentIntentFixtures
 import com.stripe.android.model.PaymentMethod
 import com.stripe.android.model.PaymentMethodCode
 import com.stripe.android.model.PaymentMethodCreateParams.Companion.getNameFromParams
 import com.stripe.android.model.PaymentMethodFixtures
+import com.stripe.android.model.SetupIntentFixtures
 import com.stripe.android.paymentsheet.ViewActionRecorder
 import com.stripe.android.paymentsheet.forms.FormFieldValues
 import com.stripe.android.paymentsheet.model.PaymentSelection
@@ -23,9 +24,6 @@ import com.stripe.android.uicore.elements.CheckboxFieldElement
 import com.stripe.android.uicore.elements.DEFAULT_CHECKBOX_TEST_TAG
 import com.stripe.android.uicore.elements.IdentifierSpec
 import com.stripe.android.uicore.forms.FormFieldEntry
-import com.stripe.android.utils.FakeLinkConfigurationCoordinator
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.runner.RunWith
@@ -167,6 +165,65 @@ internal class AddPaymentMethodTest {
         }
     }
 
+    @Test
+    fun `when customer reuse is not requested, should have allow_redisplay in params`() {
+        val metadata = PaymentMethodMetadataFactory.create(
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+        )
+
+        val formValues = FormFieldValues(
+            fieldValuePairs = mapOf(IdentifierSpec.Name to FormFieldEntry("test", true)),
+            userRequestedReuse = PaymentSelection.CustomerRequestedSave.NoRequest,
+        )
+
+        val params = formValues.transformToPaymentMethodCreateParams(
+            paymentMethodCode = "card",
+            paymentMethodMetadata = metadata,
+        )
+
+        assertThat(params.toParamMap()).containsEntry("allow_redisplay", "unspecified")
+    }
+
+    @Test
+    fun `when customer reuse is requested with reuse, should have allow_redisplay in params`() {
+        val metadata = PaymentMethodMetadataFactory.create(
+            stripeIntent = SetupIntentFixtures.SI_REQUIRES_PAYMENT_METHOD,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+        )
+
+        val formValues = FormFieldValues(
+            fieldValuePairs = mapOf(IdentifierSpec.Name to FormFieldEntry("test", true)),
+            userRequestedReuse = PaymentSelection.CustomerRequestedSave.RequestReuse,
+        )
+
+        val params = formValues.transformToPaymentMethodCreateParams(
+            paymentMethodCode = "card",
+            paymentMethodMetadata = metadata,
+        )
+
+        assertThat(params.toParamMap()).containsEntry("allow_redisplay", "always")
+    }
+
+    @Test
+    fun `when customer reuse is requested with no reuse, should have allow_redisplay in params`() {
+        val metadata = PaymentMethodMetadataFactory.create(
+            stripeIntent = SetupIntentFixtures.SI_REQUIRES_PAYMENT_METHOD,
+            paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Enabled,
+        )
+
+        val formValues = FormFieldValues(
+            fieldValuePairs = mapOf(IdentifierSpec.Name to FormFieldEntry("test", true)),
+            userRequestedReuse = PaymentSelection.CustomerRequestedSave.NoRequest,
+        )
+
+        val params = formValues.transformToPaymentMethodCreateParams(
+            paymentMethodCode = "card",
+            paymentMethodMetadata = metadata,
+        )
+
+        assertThat(params.toParamMap()).containsEntry("allow_redisplay", "limited")
+    }
+
     private fun runScenario(
         initiallySelectedPaymentMethodType: PaymentMethodCode = PaymentMethod.Type.Card.code,
         block: Scenario.() -> Unit
@@ -183,6 +240,8 @@ internal class AddPaymentMethodTest {
                 paymentMethodCode = initiallySelectedPaymentMethodType,
                 cbcEligibility = CardBrandChoiceEligibility.Ineligible,
                 merchantName = "Example, Inc.",
+                hasIntentToSetup = false,
+                paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
             ),
             formElements = listOf(
                 CheckboxFieldElement(
@@ -190,16 +249,13 @@ internal class AddPaymentMethodTest {
                 )
             ),
             paymentSelection = null,
-            linkSignupMode = LinkSignupMode.AlongsideSaveForFutureUse,
-            linkInlineSignupMode = null,
             processing = false,
             usBankAccountFormArguments = mock(),
-            linkConfigurationCoordinator = FakeLinkConfigurationCoordinator(),
         )
 
         val viewActionRecorder = ViewActionRecorder<AddPaymentMethodInteractor.ViewAction>()
 
-        val addPaymentMethodInteractor = FakeAddPaymentMethodInteractor(viewActionRecorder, initialState)
+        val addPaymentMethodInteractor = FakeAddPaymentMethodInteractor(initialState, viewActionRecorder)
 
         composeRule.setContent {
             AddPaymentMethod(interactor = addPaymentMethodInteractor)
@@ -213,23 +269,6 @@ internal class AddPaymentMethodTest {
         )
 
         Scenario(viewActionRecorder).apply(block)
-    }
-
-    class FakeAddPaymentMethodInteractor(
-        private val viewActionRecorder: ViewActionRecorder<AddPaymentMethodInteractor.ViewAction>,
-        initialState: AddPaymentMethodInteractor.State,
-        override val isLiveMode: Boolean = true,
-    ) : AddPaymentMethodInteractor {
-
-        override val state: StateFlow<AddPaymentMethodInteractor.State> = MutableStateFlow(initialState)
-
-        override fun handleViewAction(viewAction: AddPaymentMethodInteractor.ViewAction) {
-            viewActionRecorder.record(viewAction)
-        }
-
-        override fun close() {
-            // Do nothing.
-        }
     }
 
     private data class Scenario(

@@ -145,6 +145,38 @@ public final class com/stripe/android/financialconnections/FinancialConnectionsS
 	public synthetic fun newArray (I)[Ljava/lang/Object;
 }
 
+public final class com/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
+public final class com/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$DeferredIntent$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$DeferredIntent;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$DeferredIntent;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
+public final class com/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$PaymentIntent$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$PaymentIntent;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$PaymentIntent;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
+public final class com/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$SetupIntent$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$SetupIntent;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/FinancialConnectionsSheet$ElementsSessionContext$InitializationMode$SetupIntent;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
 public final class com/stripe/android/financialconnections/FinancialConnectionsSheetComposeKt {
 	public static final fun rememberFinancialConnectionsSheet (Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)Lcom/stripe/android/financialconnections/FinancialConnectionsSheet;
 	public static final fun rememberFinancialConnectionsSheetForToken (Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)Lcom/stripe/android/financialconnections/FinancialConnectionsSheet;
@@ -400,39 +432,11 @@ public final class com/stripe/android/financialconnections/features/accountpicke
 	public final fun getLambda-2$financial_connections_release ()Lkotlin/jvm/functions/Function4;
 }
 
-public final class com/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Payload$Creator : android/os/Parcelable$Creator {
-	public fun <init> ()V
-	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Payload;
-	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
-	public final fun newArray (I)[Lcom/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Payload;
-	public synthetic fun newArray (I)[Ljava/lang/Object;
-}
-
-public final class com/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Type$PartnerAuth$Creator : android/os/Parcelable$Creator {
-	public fun <init> ()V
-	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Type$PartnerAuth;
-	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
-	public final fun newArray (I)[Lcom/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Type$PartnerAuth;
-	public synthetic fun newArray (I)[Ljava/lang/Object;
-}
-
-public final class com/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Type$Repair$Creator : android/os/Parcelable$Creator {
-	public fun <init> ()V
-	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Type$Repair;
-	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
-	public final fun newArray (I)[Lcom/stripe/android/financialconnections/features/accountupdate/AccountUpdateRequiredState$Type$Repair;
-	public synthetic fun newArray (I)[Ljava/lang/Object;
-}
-
 public final class com/stripe/android/financialconnections/features/accountupdate/ComposableSingletons$AccountUpdateRequiredModalKt {
 	public static final field INSTANCE Lcom/stripe/android/financialconnections/features/accountupdate/ComposableSingletons$AccountUpdateRequiredModalKt;
-	public static field lambda-1 Lkotlin/jvm/functions/Function3;
-	public static field lambda-2 Lkotlin/jvm/functions/Function3;
-	public static field lambda-3 Lkotlin/jvm/functions/Function2;
+	public static field lambda-1 Lkotlin/jvm/functions/Function2;
 	public fun <init> ()V
-	public final fun getLambda-1$financial_connections_release ()Lkotlin/jvm/functions/Function3;
-	public final fun getLambda-2$financial_connections_release ()Lkotlin/jvm/functions/Function3;
-	public final fun getLambda-3$financial_connections_release ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda-1$financial_connections_release ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class com/stripe/android/financialconnections/features/attachpayment/ComposableSingletons$AttachPaymentScreenKt {
@@ -507,17 +511,6 @@ public final class com/stripe/android/financialconnections/features/common/Compo
 	public final fun getLambda-7$financial_connections_release ()Lkotlin/jvm/functions/Function3;
 	public final fun getLambda-8$financial_connections_release ()Lkotlin/jvm/functions/Function3;
 	public final fun getLambda-9$financial_connections_release ()Lkotlin/jvm/functions/Function2;
-}
-
-public final class com/stripe/android/financialconnections/features/common/ComposableSingletons$MerchantDataAccessTextKt {
-	public static final field INSTANCE Lcom/stripe/android/financialconnections/features/common/ComposableSingletons$MerchantDataAccessTextKt;
-	public static field lambda-1 Lkotlin/jvm/functions/Function2;
-	public static field lambda-2 Lkotlin/jvm/functions/Function3;
-	public static field lambda-3 Lkotlin/jvm/functions/Function2;
-	public fun <init> ()V
-	public final fun getLambda-1$financial_connections_release ()Lkotlin/jvm/functions/Function2;
-	public final fun getLambda-2$financial_connections_release ()Lkotlin/jvm/functions/Function3;
-	public final fun getLambda-3$financial_connections_release ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class com/stripe/android/financialconnections/features/common/ComposableSingletons$SharedPartnerAuthKt {
@@ -615,11 +608,43 @@ public final class com/stripe/android/financialconnections/features/notice/Notic
 	public synthetic fun newArray (I)[Ljava/lang/Object;
 }
 
+public final class com/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$Generic$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$Generic;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$Generic;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
 public final class com/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$Legal$Creator : android/os/Parcelable$Creator {
 	public fun <init> ()V
 	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$Legal;
 	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
 	public final fun newArray (I)[Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$Legal;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
+public final class com/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
+public final class com/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired$Type$Repair$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired$Type$Repair;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired$Type$Repair;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
+public final class com/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired$Type$Supportability$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired$Type$Supportability;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/features/notice/NoticeSheetState$NoticeSheetContent$UpdateRequired$Type$Supportability;
 	public synthetic fun newArray (I)[Ljava/lang/Object;
 }
 
@@ -785,6 +810,14 @@ public final class com/stripe/android/financialconnections/model/AccountHolder$T
 
 public final class com/stripe/android/financialconnections/model/AccountHolder$Type$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/stripe/android/financialconnections/model/AccountPickerPane$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/model/AccountPickerPane;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/model/AccountPickerPane;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
 }
 
 public final class com/stripe/android/financialconnections/model/AddNewAccount$Creator : android/os/Parcelable$Creator {
@@ -1143,7 +1176,7 @@ public final class com/stripe/android/financialconnections/model/FinancialConnec
 	public final fun getCategory ()Lcom/stripe/android/financialconnections/model/FinancialConnectionsAccount$Category;
 	public final fun getCreated ()I
 	public final fun getDisplayName ()Ljava/lang/String;
-	public final fun getId ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
 	public final fun getInstitutionName ()Ljava/lang/String;
 	public final fun getLast4 ()Ljava/lang/String;
 	public final fun getLivemode ()Z
@@ -1565,6 +1598,14 @@ public final class com/stripe/android/financialconnections/model/LegalDetailsNot
 	public synthetic fun newArray (I)[Ljava/lang/Object;
 }
 
+public final class com/stripe/android/financialconnections/model/LinkLoginPane$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/model/LinkLoginPane;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/model/LinkLoginPane;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
 public final class com/stripe/android/financialconnections/model/ManualEntry : android/os/Parcelable {
 	public static final field $stable I
 	public static final field CREATOR Landroid/os/Parcelable$Creator;
@@ -1730,6 +1771,7 @@ public final class com/stripe/android/financialconnections/model/PartnerNotice$C
 public abstract class com/stripe/android/financialconnections/model/PaymentAccount : android/os/Parcelable {
 	public static final field $stable I
 	public static final field Companion Lcom/stripe/android/financialconnections/model/PaymentAccount$Companion;
+	public abstract fun getId ()Ljava/lang/String;
 }
 
 public final class com/stripe/android/financialconnections/model/PaymentAccount$Companion {
@@ -1907,6 +1949,14 @@ public final class com/stripe/android/financialconnections/repository/AttachedPa
 	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/repository/AttachedPaymentAccountRepository$State;
 	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
 	public final fun newArray (I)[Lcom/stripe/android/financialconnections/repository/AttachedPaymentAccountRepository$State;
+	public synthetic fun newArray (I)[Ljava/lang/Object;
+}
+
+public final class com/stripe/android/financialconnections/repository/CachedConsumerSession$Creator : android/os/Parcelable$Creator {
+	public fun <init> ()V
+	public final fun createFromParcel (Landroid/os/Parcel;)Lcom/stripe/android/financialconnections/repository/CachedConsumerSession;
+	public synthetic fun createFromParcel (Landroid/os/Parcel;)Ljava/lang/Object;
+	public final fun newArray (I)[Lcom/stripe/android/financialconnections/repository/CachedConsumerSession;
 	public synthetic fun newArray (I)[Ljava/lang/Object;
 }
 

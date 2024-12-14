@@ -2,14 +2,19 @@ package com.stripe.android.financialconnections.features.networkinglinkverificat
 
 import com.google.common.truth.Truth.assertThat
 import com.stripe.android.core.Logger
+import com.stripe.android.core.exception.APIConnectionException
 import com.stripe.android.core.exception.LocalStripeException
+import com.stripe.android.financialconnections.ApiKeyFixtures.cachedConsumerSession
 import com.stripe.android.financialconnections.ApiKeyFixtures.consumerSession
 import com.stripe.android.financialconnections.ApiKeyFixtures.sessionManifest
 import com.stripe.android.financialconnections.ApiKeyFixtures.syncResponse
 import com.stripe.android.financialconnections.CoroutineTestRule
 import com.stripe.android.financialconnections.TestFinancialConnectionsAnalyticsTracker
+import com.stripe.android.financialconnections.domain.AttachConsumerToLinkAccountSession
 import com.stripe.android.financialconnections.domain.ConfirmVerification
 import com.stripe.android.financialconnections.domain.GetOrFetchSync
+import com.stripe.android.financialconnections.domain.GetOrFetchSync.RefetchCondition
+import com.stripe.android.financialconnections.domain.HandleError
 import com.stripe.android.financialconnections.domain.LookupConsumerAndStartVerification
 import com.stripe.android.financialconnections.domain.MarkLinkVerified
 import com.stripe.android.financialconnections.domain.NativeAuthFlowCoordinator
@@ -17,6 +22,7 @@ import com.stripe.android.financialconnections.model.FinancialConnectionsSession
 import com.stripe.android.financialconnections.model.FinancialConnectionsSessionManifest.Pane.NETWORKING_LINK_VERIFICATION
 import com.stripe.android.financialconnections.navigation.Destination
 import com.stripe.android.financialconnections.presentation.Async.Loading
+import com.stripe.android.financialconnections.repository.CachedConsumerSession
 import com.stripe.android.financialconnections.utils.TestNavigationManager
 import com.stripe.android.model.ConsumerSession
 import com.stripe.android.model.VerificationType
@@ -29,6 +35,7 @@ import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
@@ -45,9 +52,13 @@ class NetworkingLinkVerificationViewModelTest {
     private val markLinkVerified = mock<MarkLinkVerified>()
     private val analyticsTracker = TestFinancialConnectionsAnalyticsTracker()
     private val nativeAuthFlowCoordinator = NativeAuthFlowCoordinator()
+    private val attachConsumerToLinkAccountSession = mock<AttachConsumerToLinkAccountSession>()
+    private val handleError = mock<HandleError>()
 
     private fun buildViewModel(
-        state: NetworkingLinkVerificationState = NetworkingLinkVerificationState()
+        state: NetworkingLinkVerificationState = NetworkingLinkVerificationState(),
+        consumerSession: CachedConsumerSession? = cachedConsumerSession(),
+        isLinkWithStripe: Boolean = false,
     ) = NetworkingLinkVerificationViewModel(
         navigationManager = navigationManager,
         getOrFetchSync = getOrFetchSync,
@@ -58,7 +69,66 @@ class NetworkingLinkVerificationViewModelTest {
         logger = Logger.noop(),
         initialState = state,
         nativeAuthFlowCoordinator = nativeAuthFlowCoordinator,
+        consumerSessionProvider = { consumerSession },
+        isLinkWithStripe = { isLinkWithStripe },
+        attachConsumerToLinkAccountSession = attachConsumerToLinkAccountSession,
+        handleError = handleError,
     )
+
+    @Test
+    fun `init - uses consumersession email over accountholder customer email if in Instant Debits`() = runTest {
+        val consumerSession = cachedConsumerSession()
+        val manifest = sessionManifest().copy(
+            accountholderCustomerEmailAddress = "email@email.com",
+        )
+
+        whenever(getOrFetchSync()).thenReturn(
+            syncResponse(manifest)
+        )
+
+        buildViewModel(
+            isLinkWithStripe = true,
+            consumerSession = consumerSession
+        )
+
+        verify(lookupConsumerAndStartVerification).invoke(
+            email = eq(consumerSession.emailAddress),
+            businessName = anyOrNull(),
+            verificationType = any(),
+            onConsumerNotFound = any(),
+            onLookupError = any(),
+            onStartVerification = any(),
+            onVerificationStarted = any(),
+            onStartVerificationError = any(),
+        )
+    }
+
+    @Test
+    fun `init - falls back to accountholder customer email if no consumer session in Instant Debits`() = runTest {
+        val manifest = sessionManifest().copy(
+            accountholderCustomerEmailAddress = "email@email.com",
+        )
+
+        whenever(getOrFetchSync()).thenReturn(
+            syncResponse(manifest)
+        )
+
+        buildViewModel(
+            consumerSession = null,
+            isLinkWithStripe = true
+        )
+
+        verify(lookupConsumerAndStartVerification).invoke(
+            email = eq("email@email.com"),
+            businessName = anyOrNull(),
+            verificationType = any(),
+            onConsumerNotFound = any(),
+            onLookupError = any(),
+            onStartVerification = any(),
+            onVerificationStarted = any(),
+            onStartVerificationError = any(),
+        )
+    }
 
     @Test
     fun `init - starts SMS verification with consumer session secret`() = runTest {
@@ -234,4 +304,96 @@ class NetworkingLinkVerificationViewModelTest {
                 pane = NETWORKING_LINK_VERIFICATION
             )
         }
+
+    @Test
+    fun `otpEntered - attaches consumer to LAS and navigates to account picker in Instant Debits`() = runTest {
+        val consumerSession = consumerSession()
+        val onStartVerificationCaptor = argumentCaptor<suspend () -> Unit>()
+        val onVerificationStartedCaptor = argumentCaptor<suspend (ConsumerSession) -> Unit>()
+
+        whenever(getOrFetchSync(any())).thenReturn(
+            syncResponse(sessionManifest().copy(accountholderCustomerEmailAddress = consumerSession.emailAddress))
+        )
+        whenever(attachConsumerToLinkAccountSession.invoke(any())).thenReturn(Unit)
+
+        val viewModel = buildViewModel(isLinkWithStripe = true)
+
+        verify(lookupConsumerAndStartVerification).invoke(
+            email = eq(consumerSession.emailAddress),
+            businessName = anyOrNull(),
+            verificationType = eq(VerificationType.SMS),
+            onConsumerNotFound = any(),
+            onLookupError = any(),
+            onStartVerification = onStartVerificationCaptor.capture(),
+            onVerificationStarted = onVerificationStartedCaptor.capture(),
+            onStartVerificationError = any()
+        )
+
+        onStartVerificationCaptor.firstValue()
+        onVerificationStartedCaptor.firstValue(consumerSession)
+
+        val otpController = viewModel.stateFlow.value.payload()!!.otpElement.controller
+
+        val otpCode = "111111"
+
+        for (index in otpCode.indices) {
+            otpController.onValueChanged(index, otpCode[index].toString())
+        }
+
+        verify(attachConsumerToLinkAccountSession).invoke(consumerSession.clientSecret)
+        verify(getOrFetchSync).invoke(RefetchCondition.Always)
+        verify(markLinkVerified, never()).invoke()
+
+        navigationManager.assertNavigatedTo(
+            destination = Destination.LinkAccountPicker,
+            pane = NETWORKING_LINK_VERIFICATION,
+        )
+    }
+
+    @Test
+    fun `otpEntered - shows terminal error if failing to attach consumer to LAS in Instant Debits`() = runTest {
+        val consumerSession = consumerSession()
+        val onStartVerificationCaptor = argumentCaptor<suspend () -> Unit>()
+        val onVerificationStartedCaptor = argumentCaptor<suspend (ConsumerSession) -> Unit>()
+
+        whenever(getOrFetchSync(any())).thenReturn(
+            syncResponse(sessionManifest().copy(accountholderCustomerEmailAddress = consumerSession.emailAddress))
+        )
+
+        whenever(attachConsumerToLinkAccountSession.invoke(any())).then {
+            throw APIConnectionException()
+        }
+
+        val viewModel = buildViewModel(isLinkWithStripe = true)
+
+        verify(lookupConsumerAndStartVerification).invoke(
+            email = eq(consumerSession.emailAddress),
+            businessName = anyOrNull(),
+            verificationType = eq(VerificationType.SMS),
+            onConsumerNotFound = any(),
+            onLookupError = any(),
+            onStartVerification = onStartVerificationCaptor.capture(),
+            onVerificationStarted = onVerificationStartedCaptor.capture(),
+            onStartVerificationError = any()
+        )
+
+        onStartVerificationCaptor.firstValue()
+        onVerificationStartedCaptor.firstValue(consumerSession)
+
+        val otpController = viewModel.stateFlow.value.payload()!!.otpElement.controller
+
+        val otpCode = "111111"
+
+        for (index in otpCode.indices) {
+            otpController.onValueChanged(index, otpCode[index].toString())
+        }
+
+        verify(attachConsumerToLinkAccountSession).invoke(consumerSession.clientSecret)
+        verify(handleError).invoke(
+            extraMessage = any(),
+            error = any(),
+            pane = eq(NETWORKING_LINK_VERIFICATION),
+            displayErrorScreen = eq(true),
+        )
+    }
 }

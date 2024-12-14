@@ -6,8 +6,8 @@ import com.stripe.android.link.LinkPaymentDetails
 import com.stripe.android.link.model.PaymentDetailsFixtures
 import com.stripe.android.model.ConsumerPaymentDetails
 import com.stripe.android.model.ConsumerPaymentDetailsCreateParams
-import com.stripe.android.model.ConsumerSession
 import com.stripe.android.model.ConsumerSessionLookup
+import com.stripe.android.model.ConsumerSessionSignup
 import com.stripe.android.model.ConsumerSignUpConsentAction
 import com.stripe.android.model.PaymentIntent
 import com.stripe.android.model.PaymentMethodCreateParams
@@ -119,27 +119,37 @@ class LinkApiRepositoryTest {
             ConsumerSignUpConsentAction.Checkbox
         )
 
-        verify(stripeRepository).consumerSignUp(
-            eq(email),
-            eq(phone),
-            eq(country),
-            eq(name),
-            eq(Locale.US),
-            eq(ConsumerSignUpConsentAction.Checkbox),
-            eq(ApiRequest.Options(PUBLISHABLE_KEY, STRIPE_ACCOUNT_ID))
+        verify(consumersApiService).signUp(
+            email = email,
+            phoneNumber = phone,
+            country = country,
+            name = name,
+            locale = Locale.US,
+            amount = null,
+            currency = null,
+            paymentIntentId = null,
+            setupIntentId = null,
+            requestSurface = "android_payment_element",
+            consentAction = ConsumerSignUpConsentAction.Checkbox,
+            requestOptions = ApiRequest.Options(PUBLISHABLE_KEY, STRIPE_ACCOUNT_ID),
         )
     }
 
     @Test
     fun `consumerSignUp returns successful result`() = runTest {
-        val consumerSession = mock<ConsumerSession>()
+        val consumerSession = mock<ConsumerSessionSignup>()
         whenever(
-            stripeRepository.consumerSignUp(
+            consumersApiService.signUp(
                 email = any(),
                 phoneNumber = any(),
                 country = any(),
                 name = anyOrNull(),
                 locale = anyOrNull(),
+                amount = anyOrNull(),
+                currency = anyOrNull(),
+                paymentIntentId = anyOrNull(),
+                setupIntentId = anyOrNull(),
+                requestSurface = any(),
                 consentAction = any(),
                 requestOptions = any()
             )
@@ -160,12 +170,17 @@ class LinkApiRepositoryTest {
     @Test
     fun `consumerSignUp catches exception and returns failure`() = runTest {
         whenever(
-            stripeRepository.consumerSignUp(
+            consumersApiService.signUp(
                 email = any(),
                 phoneNumber = any(),
                 country = any(),
                 name = anyOrNull(),
                 locale = anyOrNull(),
+                amount = anyOrNull(),
+                currency = anyOrNull(),
+                paymentIntentId = anyOrNull(),
+                setupIntentId = anyOrNull(),
+                requestSurface = any(),
                 consentAction = any(),
                 requestOptions = any()
             )
@@ -197,7 +212,7 @@ class LinkApiRepositoryTest {
             active = false,
         )
 
-        verify(stripeRepository).createPaymentDetails(
+        verify(consumersApiService).createPaymentDetails(
             eq(secret),
             argThat<ConsumerPaymentDetailsCreateParams> {
                 toParamMap() == mapOf(
@@ -211,11 +226,12 @@ class LinkApiRepositoryTest {
                     "billing_address" to mapOf(
                         "country_code" to "US",
                         "postal_code" to "12345"
-                    )
+                    ),
+                    "active" to false,
                 )
             },
-            eq(ApiRequest.Options(consumerKey)),
-            eq(false),
+            requestSurface = eq("android_payment_element"),
+            requestOptions = eq(ApiRequest.Options(consumerKey)),
         )
     }
 
@@ -234,9 +250,9 @@ class LinkApiRepositoryTest {
                 active = false,
             )
 
-            verify(stripeRepository).createPaymentDetails(
-                eq(secret),
-                argThat<ConsumerPaymentDetailsCreateParams> {
+            verify(consumersApiService).createPaymentDetails(
+                consumerSessionClientSecret = eq(secret),
+                paymentDetailsCreateParams = argThat<ConsumerPaymentDetailsCreateParams> {
                     toParamMap() == mapOf(
                         "type" to "card",
                         "billing_email_address" to "email@stripe.com",
@@ -248,11 +264,12 @@ class LinkApiRepositoryTest {
                         "billing_address" to mapOf(
                             "country_code" to "US",
                             "postal_code" to "12345"
-                        )
+                        ),
+                        "active" to false,
                     )
                 },
-                eq(ApiRequest.Options(PUBLISHABLE_KEY, STRIPE_ACCOUNT_ID)),
-                eq(false),
+                requestSurface = eq("android_payment_element"),
+                requestOptions = eq(ApiRequest.Options(PUBLISHABLE_KEY, STRIPE_ACCOUNT_ID)),
             )
         }
 
@@ -262,11 +279,11 @@ class LinkApiRepositoryTest {
         val email = "email@stripe.com"
         val paymentDetails = PaymentDetailsFixtures.CONSUMER_SINGLE_PAYMENT_DETAILS
         whenever(
-            stripeRepository.createPaymentDetails(
+            consumersApiService.createPaymentDetails(
                 consumerSessionClientSecret = any(),
                 paymentDetailsCreateParams = any(),
+                requestSurface = any(),
                 requestOptions = any(),
-                active = any(),
             )
         ).thenReturn(Result.success(paymentDetails))
 
@@ -309,11 +326,11 @@ class LinkApiRepositoryTest {
     @Test
     fun `createPaymentDetails for card catches exception and returns failure`() = runTest {
         whenever(
-            stripeRepository.createPaymentDetails(
+            consumersApiService.createPaymentDetails(
                 consumerSessionClientSecret = any(),
                 paymentDetailsCreateParams = any(),
+                requestSurface = any(),
                 requestOptions = any(),
-                active = any(),
             )
         ).thenReturn(Result.failure(RuntimeException("error")))
 
@@ -335,11 +352,13 @@ class LinkApiRepositoryTest {
     @Test
     fun `shareCardPaymentDetails returns LinkPaymentDetails_Saved`() = runTest {
         val consumerSessionSecret = "consumer_session_secret"
+        val id = "csmrpd*AYq4D_sXdAAAAOQ0"
 
         whenever(
             stripeRepository.sharePaymentDetails(
                 consumerSessionClientSecret = any(),
                 id = any(),
+                extraParams = anyOrNull(),
                 requestOptions = any(),
             )
         ).thenReturn(Result.success("pm_123"))
@@ -347,13 +366,19 @@ class LinkApiRepositoryTest {
         val result = linkRepository.shareCardPaymentDetails(
             paymentMethodCreateParams = cardPaymentMethodCreateParams,
             consumerSessionClientSecret = consumerSessionSecret,
-            id = "csmrpd*AYq4D_sXdAAAAOQ0",
+            id = id,
             last4 = "4242",
         )
 
         assertThat(result.isSuccess).isTrue()
         val savedLinkPaymentDetails = result.getOrThrow() as LinkPaymentDetails.Saved
 
+        verify(stripeRepository).sharePaymentDetails(
+            consumerSessionClientSecret = consumerSessionSecret,
+            id = id,
+            extraParams = mapOf("payment_method_options" to mapOf("card" to mapOf("cvc" to "123"))),
+            requestOptions = ApiRequest.Options(apiKey = PUBLISHABLE_KEY, stripeAccount = STRIPE_ACCOUNT_ID)
+        )
         assertThat(savedLinkPaymentDetails.paymentDetails)
             .isEqualTo(ConsumerPaymentDetails.Passthrough(id = "pm_123", last4 = "4242"))
         assertThat(savedLinkPaymentDetails.paymentMethodCreateParams)
@@ -374,6 +399,7 @@ class LinkApiRepositoryTest {
             stripeRepository.sharePaymentDetails(
                 consumerSessionClientSecret = any(),
                 id = any(),
+                extraParams = anyOrNull(),
                 requestOptions = any(),
             )
         ).thenReturn(Result.failure(RuntimeException("error")))

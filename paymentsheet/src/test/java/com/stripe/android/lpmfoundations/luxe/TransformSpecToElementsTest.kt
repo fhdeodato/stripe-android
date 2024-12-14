@@ -379,7 +379,6 @@ private object TransformSpecToElementsFactory {
         return TransformSpecToElements(
             UiDefinitionFactory.Arguments(
                 initialValues = mapOf(),
-                amount = null,
                 saveForFutureUseInitialValue = true,
                 merchantName = "Merchant, Inc.",
                 cardAccountRangeRepositoryFactory = DefaultCardAccountRangeRepositoryFactory(context),
@@ -387,6 +386,8 @@ private object TransformSpecToElementsFactory {
                 cbcEligibility = CardBrandChoiceEligibility.Ineligible,
                 billingDetailsCollectionConfiguration = billingDetailsCollectionConfiguration,
                 requiresMandate = requiresMandate,
+                linkConfigurationCoordinator = null,
+                onLinkInlineSignupStateChanged = { throw AssertionError("Not implemented") },
             )
         )
     }

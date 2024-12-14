@@ -5,13 +5,15 @@ import com.stripe.android.model.PaymentMethod
 import com.stripe.android.model.PaymentMethodCode
 import com.stripe.android.paymentsheet.PaymentOptionsItem
 import com.stripe.android.paymentsheet.PaymentOptionsStateFactory
+import com.stripe.android.paymentsheet.state.CustomerState
 import com.stripe.android.uicore.utils.combineAsStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 internal class PaymentOptionsItemsMapper(
-    private val paymentMethods: StateFlow<List<PaymentMethod>>,
+    private val customerState: StateFlow<CustomerState?>,
     private val isGooglePayReady: StateFlow<Boolean>,
     private val isLinkEnabled: StateFlow<Boolean?>,
+    private val canRemovePaymentMethods: StateFlow<Boolean>,
     private val nameProvider: (PaymentMethodCode?) -> ResolvableString,
     private val isNotPaymentFlow: Boolean,
     private val isCbcEligible: () -> Boolean
@@ -19,16 +21,16 @@ internal class PaymentOptionsItemsMapper(
 
     operator fun invoke(): StateFlow<List<PaymentOptionsItem>> {
         return combineAsStateFlow(
-            paymentMethods,
+            customerState,
             isLinkEnabled,
             isGooglePayReady,
-        ) { paymentMethods, isLinkEnabled, isGooglePayReady ->
+            canRemovePaymentMethods,
+        ) { customerState, isLinkEnabled, isGooglePayReady, canRemove ->
             createPaymentOptionsItems(
-                paymentMethods = paymentMethods,
+                paymentMethods = customerState?.paymentMethods ?: listOf(),
                 isLinkEnabled = isLinkEnabled,
-                // TODO(samer-stripe): Set this based on customer_session permissions
-                canRemovePaymentMethods = true,
                 isGooglePayReady = isGooglePayReady,
+                canRemovePaymentMethods = canRemove,
             ) ?: emptyList()
         }
     }
@@ -37,8 +39,8 @@ internal class PaymentOptionsItemsMapper(
     private fun createPaymentOptionsItems(
         paymentMethods: List<PaymentMethod>,
         isLinkEnabled: Boolean?,
-        canRemovePaymentMethods: Boolean?,
         isGooglePayReady: Boolean,
+        canRemovePaymentMethods: Boolean,
     ): List<PaymentOptionsItem>? {
         if (isLinkEnabled == null) return null
 
@@ -48,7 +50,7 @@ internal class PaymentOptionsItemsMapper(
             showLink = isLinkEnabled && isNotPaymentFlow,
             nameProvider = nameProvider,
             isCbcEligible = isCbcEligible(),
-            canRemovePaymentMethods = canRemovePaymentMethods ?: false
+            canRemovePaymentMethods = canRemovePaymentMethods,
         )
     }
 }

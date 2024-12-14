@@ -2,7 +2,6 @@ package com.stripe.android.paymentsheet.utils
 
 import com.stripe.android.link.LinkConfiguration
 import com.stripe.android.link.LinkPaymentDetails
-import com.stripe.android.link.ui.inline.LinkSignupMode
 import com.stripe.android.model.ConsumerPaymentDetails
 import com.stripe.android.model.PaymentMethod
 import org.mockito.kotlin.doReturn
@@ -33,12 +32,12 @@ object LinkTestUtils {
                     PaymentMethod.Type.Card.code
                 )
             },
-            signupMode = LinkSignupMode.InsteadOfSaveForFutureUse,
             customerInfo = LinkConfiguration.CustomerInfo(null, null, null, null),
             flags = mapOf(),
             merchantName = "Test merchant inc.",
             merchantCountryCode = "US",
             passthroughModeEnabled = false,
+            cardBrandChoice = null,
             shippingValues = mapOf(),
         )
     }

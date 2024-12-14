@@ -85,6 +85,16 @@ internal object PaymentMethodFixtures {
         customerId = "cus_AQsHpvKfKwJDrF",
         code = "paypal"
     )
+
+    val LINK_PAYMENT_METHOD = PaymentMethod(
+        id = "pm_123456789",
+        created = 1550757934255L,
+        liveMode = true,
+        type = PaymentMethod.Type.Link,
+        billingDetails = BILLING_DETAILS,
+        customerId = "cus_AQsHpvKfKwJDrF",
+        code = "link"
+    )
 //
 //    val AU_BECS_DEBIT_PAYMENT_METHOD = PaymentMethod(
 //        id = "pm_1GJ4cUABjb",
@@ -425,6 +435,19 @@ internal object PaymentMethodFixtures {
         darkThemeIconUrl = null,
     )
 
+    val CASHAPP_PAYMENT_SELECTION = PaymentSelection.New.GenericPaymentMethod(
+        label = "Cash App".resolvableString,
+        iconResource = 0,
+        lightThemeIconUrl = null,
+        darkThemeIconUrl = null,
+        paymentMethodCreateParams = PaymentMethodCreateParams.createCashAppPay(
+            billingDetails = PaymentMethod.BillingDetails(email = "example@email.com")
+        ),
+        customerRequestedSave = PaymentSelection.CustomerRequestedSave.NoRequest,
+        paymentMethodOptionsParams = null,
+        paymentMethodExtraParams = null,
+    )
+
     val US_BANK_PAYMENT_SELECTION = PaymentSelection.New.USBankAccount(
         labelResource = "Test",
         iconResource = 0,
@@ -562,14 +585,11 @@ internal object PaymentMethodFixtures {
         return CARD_PAYMENT_METHOD.toDisplayableSavedPaymentMethod()
     }
 
-    fun PaymentMethod.toDisplayableSavedPaymentMethod(
-        isRemovable: Boolean = true,
-    ): DisplayableSavedPaymentMethod {
+    fun PaymentMethod.toDisplayableSavedPaymentMethod(): DisplayableSavedPaymentMethod {
         return DisplayableSavedPaymentMethod(
             displayName = (this.card?.last4 ?: this.usBankAccount?.last4 ?: "").resolvableString,
             paymentMethod = this,
             isCbcEligible = true,
-            isRemovable = isRemovable,
         )
     }
 

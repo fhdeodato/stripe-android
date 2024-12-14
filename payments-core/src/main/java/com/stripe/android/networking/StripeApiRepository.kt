@@ -5,7 +5,6 @@ import android.net.http.HttpResponseCache
 import androidx.annotation.RestrictTo
 import androidx.annotation.VisibleForTesting
 import com.stripe.android.DefaultFraudDetectionDataRepository
-import com.stripe.android.FraudDetectionDataRepository
 import com.stripe.android.Stripe
 import com.stripe.android.StripeApiBeta
 import com.stripe.android.cards.Bin
@@ -23,6 +22,9 @@ import com.stripe.android.core.exception.PermissionException
 import com.stripe.android.core.exception.RateLimitException
 import com.stripe.android.core.exception.StripeException
 import com.stripe.android.core.exception.safeAnalyticsMessage
+import com.stripe.android.core.frauddetection.FraudDetectionData
+import com.stripe.android.core.frauddetection.FraudDetectionDataParamsUtils
+import com.stripe.android.core.frauddetection.FraudDetectionDataRepository
 import com.stripe.android.core.injection.IOContext
 import com.stripe.android.core.injection.PUBLISHABLE_KEY
 import com.stripe.android.core.model.StripeFile
@@ -50,10 +52,7 @@ import com.stripe.android.model.ConfirmPaymentIntentParams
 import com.stripe.android.model.ConfirmSetupIntentParams
 import com.stripe.android.model.ConfirmStripeIntentParams
 import com.stripe.android.model.ConfirmStripeIntentParams.Companion.PARAM_CLIENT_SECRET
-import com.stripe.android.model.ConsumerPaymentDetails
-import com.stripe.android.model.ConsumerPaymentDetailsCreateParams
 import com.stripe.android.model.ConsumerSession
-import com.stripe.android.model.ConsumerSignUpConsentAction
 import com.stripe.android.model.CreateFinancialConnectionsSessionForDeferredPaymentParams
 import com.stripe.android.model.CreateFinancialConnectionsSessionParams
 import com.stripe.android.model.Customer
@@ -78,7 +77,6 @@ import com.stripe.android.model.StripeIntent
 import com.stripe.android.model.Token
 import com.stripe.android.model.TokenParams
 import com.stripe.android.model.parsers.CardMetadataJsonParser
-import com.stripe.android.model.parsers.ConsumerPaymentDetailsJsonParser
 import com.stripe.android.model.parsers.ConsumerPaymentDetailsShareJsonParser
 import com.stripe.android.model.parsers.ConsumerSessionJsonParser
 import com.stripe.android.model.parsers.CustomerJsonParser
@@ -1067,70 +1065,10 @@ class StripeApiRepository @JvmOverloads internal constructor(
         )
     }
 
-    /**
-     * Creates a new Link account for the credentials provided.
-     */
-    override suspend fun consumerSignUp(
-        email: String,
-        phoneNumber: String,
-        country: String,
-        name: String?,
-        locale: Locale?,
-        consentAction: ConsumerSignUpConsentAction,
-        requestOptions: ApiRequest.Options
-    ): Result<ConsumerSession> {
-        return fetchStripeModelResult(
-            apiRequest = apiRequestFactory.createPost(
-                url = consumerSignUpUrl,
-                options = requestOptions,
-                params = mapOf(
-                    "request_surface" to "android_payment_element",
-                    "country_inferring_method" to "PHONE_NUMBER",
-                    "email_address" to email.lowercase(),
-                    "phone_number" to phoneNumber,
-                    "country" to country,
-                    "consent_action" to consentAction.value
-                ).plus(
-                    locale?.let {
-                        mapOf("locale" to it.toLanguageTag())
-                    } ?: emptyMap()
-                ).plus(
-                    name?.let {
-                        mapOf("legal_name" to it)
-                    } ?: emptyMap()
-                )
-            ),
-            jsonParser = ConsumerSessionJsonParser(),
-        )
-    }
-
-    override suspend fun createPaymentDetails(
-        consumerSessionClientSecret: String,
-        paymentDetailsCreateParams: ConsumerPaymentDetailsCreateParams,
-        requestOptions: ApiRequest.Options,
-        active: Boolean,
-    ): Result<ConsumerPaymentDetails> {
-        return fetchStripeModelResult(
-            apiRequest = apiRequestFactory.createPost(
-                url = consumerPaymentDetailsUrl,
-                options = requestOptions,
-                params = mapOf(
-                    "request_surface" to "android_payment_element",
-                    "credentials" to mapOf(
-                        "consumer_session_client_secret" to consumerSessionClientSecret
-                    ),
-                    "active" to active,
-                ).plus(
-                    paymentDetailsCreateParams.toParamMap()
-                )
-            ),
-            jsonParser = ConsumerPaymentDetailsJsonParser(),
-        )
-    }
-
     override suspend fun sharePaymentDetails(
         consumerSessionClientSecret: String,
         id: String,
+        extraParams: Map<String, *>?,
         requestOptions: ApiRequest.Options
     ): Result<String> {
         return fetchStripeModelResult(
@@ -1144,7 +1082,7 @@ class StripeApiRepository @JvmOverloads internal constructor(
                     ),
                     "id" to id,
                     buildPaymentUserAgentPair(),
-                )
+                ).plus(extraParams ?: emptyMap())
             ),
             jsonParser = ConsumerPaymentDetailsShareJsonParser,
         ).map { it.id }
@@ -1511,7 +1449,7 @@ class StripeApiRepository @JvmOverloads internal constructor(
 
         val parser = ElementsSessionJsonParser(
             params = params,
-            apiKey = options.apiKey
+            isLiveMode = options.apiKeyIsLiveMode
         )
 
         val requestParams = buildMap {
@@ -1826,13 +1764,6 @@ class StripeApiRepository @JvmOverloads internal constructor(
         internal val paymentMethodsUrl: String
             @JvmSynthetic
             get() = getApiUrl("payment_methods")
-
-        /**
-         * @return `https://api.stripe.com/v1/consumers/accounts/sign_up`
-         */
-        internal val consumerSignUpUrl: String
-            @JvmSynthetic
-            get() = getApiUrl("consumers/accounts/sign_up")
 
         /**
          * @return `https://api.stripe.com/v1/consumers/sessions/log_out`

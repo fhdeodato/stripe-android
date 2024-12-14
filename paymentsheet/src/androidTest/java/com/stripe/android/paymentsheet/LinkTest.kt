@@ -2,7 +2,6 @@ package com.stripe.android.paymentsheet
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.closeSoftKeyboard
-import com.google.common.truth.Truth.assertThat
 import com.google.testing.junit.testparameterinjector.TestParameter
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.stripe.android.core.utils.urlEncode
@@ -17,11 +16,11 @@ import com.stripe.android.networktesting.RequestMatchers.method
 import com.stripe.android.networktesting.RequestMatchers.not
 import com.stripe.android.networktesting.RequestMatchers.path
 import com.stripe.android.networktesting.testBodyFromFile
-import com.stripe.android.paymentsheet.utils.LinkIntegrationType
-import com.stripe.android.paymentsheet.utils.LinkIntegrationTypeProvider
+import com.stripe.android.paymentsheet.utils.ProductIntegrationType
+import com.stripe.android.paymentsheet.utils.ProductIntegrationTypeProvider
 import com.stripe.android.paymentsheet.utils.TestRules
 import com.stripe.android.paymentsheet.utils.assertCompleted
-import com.stripe.android.paymentsheet.utils.runLinkTest
+import com.stripe.android.paymentsheet.utils.runProductIntegrationTest
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,16 +40,13 @@ internal class LinkTest {
 
     private val page: PaymentSheetPage = PaymentSheetPage(composeTestRule)
 
-    @TestParameter(valuesProvider = LinkIntegrationTypeProvider::class)
-    lateinit var integrationType: LinkIntegrationType
+    @TestParameter(valuesProvider = ProductIntegrationTypeProvider::class)
+    lateinit var integrationType: ProductIntegrationType
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkSignUp() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkSignUp() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -129,15 +125,9 @@ internal class LinkTest {
 
     @Test
     fun testSuccessfulCardPaymentWithLinkSignUpAndSaveForFutureUsage() =
-        runLinkTest(
+        runProductIntegrationTest(
             networkRule = networkRule,
             integrationType = integrationType,
-            paymentOptionCallback = { paymentOption ->
-                assertThat(paymentOption?.label).endsWith("4242")
-
-                @Suppress("DEPRECATION")
-                assertThat(paymentOption?.drawableResourceId).isEqualTo(R.drawable.stripe_ic_paymentsheet_link)
-            },
             resultCallback = ::assertCompleted,
         ) { testContext ->
             networkRule.enqueue(
@@ -171,13 +161,6 @@ internal class LinkTest {
                 response.testBodyFromFile("consumer-session-lookup-success.json")
             }
 
-            networkRule.enqueue(
-                method("POST"),
-                path("/v1/consumers/sessions/lookup"),
-            ) { response ->
-                response.testBodyFromFile("consumer-session-lookup-success.json")
-            }
-
             testContext.launch(
                 configuration = PaymentSheet.Configuration(
                     merchantDisplayName = "Merchant, Inc.",
@@ -189,7 +172,7 @@ internal class LinkTest {
             )
 
             page.fillOutCardDetails()
-            page.clickOnSaveForFutureUsage("Merchant, Inc.")
+            page.clickOnSaveForFutureUsage()
 
             closeSoftKeyboard()
 
@@ -244,12 +227,9 @@ internal class LinkTest {
         }
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkSignUpAndCardBrandChoice() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkSignUpAndCardBrandChoice() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -332,15 +312,9 @@ internal class LinkTest {
     }
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkSignUpAndLinkPassthroughMode() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkSignUpAndLinkPassthroughMode() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-
-            @Suppress("DEPRECATION")
-            assertThat(paymentOption?.drawableResourceId).isEqualTo(R.drawable.stripe_ic_paymentsheet_link)
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -431,15 +405,9 @@ internal class LinkTest {
 
     @Test
     fun testSuccessfulCardPaymentWithLinkSignUpAndLinkPassthroughModeAndSaveForFutureUsage() =
-        runLinkTest(
+        runProductIntegrationTest(
             networkRule = networkRule,
             integrationType = integrationType,
-            paymentOptionCallback = { paymentOption ->
-                assertThat(paymentOption?.label).endsWith("4242")
-
-                @Suppress("DEPRECATION")
-                assertThat(paymentOption?.drawableResourceId).isEqualTo(R.drawable.stripe_ic_paymentsheet_link)
-            },
             resultCallback = ::assertCompleted,
         ) { testContext ->
             networkRule.enqueue(
@@ -473,13 +441,6 @@ internal class LinkTest {
                 response.testBodyFromFile("consumer-session-lookup-success.json")
             }
 
-            networkRule.enqueue(
-                method("POST"),
-                path("/v1/consumers/sessions/lookup"),
-            ) { response ->
-                response.testBodyFromFile("consumer-session-lookup-success.json")
-            }
-
             testContext.launch(
                 configuration = PaymentSheet.Configuration(
                     merchantDisplayName = "Merchant, Inc.",
@@ -491,7 +452,7 @@ internal class LinkTest {
             )
 
             page.fillOutCardDetails()
-            page.clickOnSaveForFutureUsage("Merchant, Inc.")
+            page.clickOnSaveForFutureUsage()
 
             closeSoftKeyboard()
 
@@ -553,15 +514,9 @@ internal class LinkTest {
         }
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkSignUpPassthroughModeAndCardBrandChoice() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkSignUpPassthroughModeAndCardBrandChoice() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("1001")
-
-            @Suppress("DEPRECATION")
-            assertThat(paymentOption?.drawableResourceId).isEqualTo(R.drawable.stripe_ic_paymentsheet_link)
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -656,12 +611,9 @@ internal class LinkTest {
     }
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkSignUpFailure() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkSignUpFailure() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -715,12 +667,9 @@ internal class LinkTest {
     }
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkSignUpFailureInPassthroughMode() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkSignUpFailureInPassthroughMode() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -774,12 +723,9 @@ internal class LinkTest {
     }
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkSignUpShareFailureInPassthroughMode() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkSignUpShareFailureInPassthroughMode() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -840,12 +786,9 @@ internal class LinkTest {
     }
 
     @Test
-    fun testSuccessfulCardPaymentWithExistingLinkEmailUsed() = runLinkTest(
+    fun testSuccessfulCardPaymentWithExistingLinkEmailUsed() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -891,12 +834,9 @@ internal class LinkTest {
     }
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkPreviouslyUsed() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkPreviouslyUsed() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -925,12 +865,9 @@ internal class LinkTest {
     }
 
     @Test
-    fun testLogoutAfterLinkTransaction() = runLinkTest(
+    fun testLogoutAfterLinkTransaction() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -941,7 +878,7 @@ internal class LinkTest {
             response.testBodyFromFile("elements-sessions-requires_payment_method.json")
         }
 
-        repeat(3) {
+        repeat(2) {
             networkRule.enqueue(
                 method("POST"),
                 path("/v1/consumers/sessions/lookup"),
@@ -1007,12 +944,9 @@ internal class LinkTest {
     }
 
     @Test
-    fun testSuccessfulCardPaymentWithLinkSignUpWithAlbaniaPhoneNumber() = runLinkTest(
+    fun testSuccessfulCardPaymentWithLinkSignUpWithAlbaniaPhoneNumber() = runProductIntegrationTest(
         networkRule = networkRule,
         integrationType = integrationType,
-        paymentOptionCallback = { paymentOption ->
-            assertThat(paymentOption?.label).endsWith("4242")
-        },
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(

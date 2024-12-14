@@ -141,6 +141,7 @@ internal class PaymentSheetTest {
     fun testSuccessfulDelayedSuccessPayment() = runPaymentSheetTest(
         networkRule = networkRule,
         integrationType = integrationType,
+        successTimeoutSeconds = 10L,
         resultCallback = ::assertCompleted,
     ) { testContext ->
         networkRule.enqueue(
@@ -309,5 +310,52 @@ internal class PaymentSheetTest {
                 page.clickPrimaryButton()
             }
         }
+    }
+
+    @Test
+    fun testPaymentIntentWithCvcRecollection() = runPaymentSheetTest(
+        networkRule = networkRule,
+        integrationType = integrationType,
+        resultCallback = ::assertCompleted,
+    ) { testContext ->
+        networkRule.enqueue(
+            host("api.stripe.com"),
+            method("GET"),
+            path("/v1/elements/sessions"),
+        ) { response ->
+            response.testBodyFromFile("elements-sessions-requires_cvc_recollection.json")
+        }
+
+        networkRule.enqueue(
+            host("api.stripe.com"),
+            method("GET"),
+            path("/v1/payment_methods"),
+        ) { response ->
+            response.testBodyFromFile("payment-methods-get-success.json")
+        }
+
+        testContext.presentPaymentSheet {
+            presentWithPaymentIntent(
+                paymentIntentClientSecret = "pi_example_secret_example",
+                configuration = PaymentSheet.Configuration(
+                    merchantDisplayName = "Merchant, Inc.",
+                    customer = PaymentSheet.CustomerConfiguration(
+                        id = "cus_1",
+                        ephemeralKeySecret = "123",
+                    ),
+                ),
+            )
+        }
+
+        networkRule.enqueue(
+            method("POST"),
+            path("/v1/payment_intents/pi_example/confirm"),
+            bodyPart(urlEncode("payment_method_options[card][cvc]"), "123")
+        ) { response ->
+            response.testBodyFromFile("payment-intent-confirm.json")
+        }
+
+        page.fillCvcRecollection("123")
+        page.clickPrimaryButton()
     }
 }

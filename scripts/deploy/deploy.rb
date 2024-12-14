@@ -4,13 +4,18 @@ require 'colorize'
 require 'optparse'
 
 require_relative 'common'
-require_relative 'github_steps'
+require_relative 'create_github_release'
+require_relative 'permissions_check'
+require_relative 'publish_to_sonatype'
+require_relative 'update_dokka'
+require_relative 'update_pay_server_docs'
 require_relative 'update_version_numbers'
 require_relative 'validate_version_number'
+require_relative 'version_bump_pr_steps'
 
 @step_index = 1
 @is_dry_run = false
-@branch = 'master'
+@deploy_branch = 'master'
 
 def execute_steps(steps, step_index)
   step_count = steps.length
@@ -48,35 +53,39 @@ OptionParser.new do |opts|
   end
 
   opts.on('--branch BRANCH', "Branch to deploy from") do |t|
-      @branch = t
+      @deploy_branch = t
   end
 end.parse!
 
 steps = [
     # Prep for making changes
+    method(:check_permissions),
     method(:validate_version_number),
     method(:ensure_clean_repo),
     method(:pull_latest),
-    method(:switch_to_release_branch),
 
     # Update version number
-    method(:update_read_me),
-    method(:update_stripe_sdk_version),
-    method(:update_gradle_properties),
     method(:create_version_bump_pr),
+
+    # Actually release a new SDK version
+    method(:publish_to_sonatype),
+
+    # Create a Github release
+    method(:create_github_release),
+
+    # Do docs updates
+    method(:generate_dokka),
+    method(:update_pay_server_docs),
 ]
 
 execute_steps(steps, @step_index)
 
 if (@is_dry_run)
-    rputs "Please verify that the dry run worked as expected.
-
-    You should see a PR opened that bumps version numbers in the stripe-android codebase on branch release/<new release number>.
-
-    When you're done, press enter to revert all changes."
+    rputs "Press enter to revert all changes made during the dry run."
     wait_for_user()
 
-    revert_all_changes()
-    execute_or_fail("git checkout #{@branch}")
-    delete_release_branch()
+    delete_github_release()
+    revert_version_bump_changes()
+    revert_dokka_changes()
+    delete_pay_server_branch()
 end

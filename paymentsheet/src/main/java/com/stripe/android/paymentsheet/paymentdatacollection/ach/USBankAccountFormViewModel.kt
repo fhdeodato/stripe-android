@@ -13,9 +13,11 @@ import com.stripe.android.PaymentConfiguration
 import com.stripe.android.core.strings.ResolvableString
 import com.stripe.android.core.strings.resolvableString
 import com.stripe.android.core.utils.requireApplication
+import com.stripe.android.financialconnections.FinancialConnectionsSheet.ElementsSessionContext
 import com.stripe.android.financialconnections.model.BankAccount
 import com.stripe.android.financialconnections.model.FinancialConnectionsAccount
 import com.stripe.android.model.Address
+import com.stripe.android.model.LinkMode
 import com.stripe.android.model.PaymentMethod
 import com.stripe.android.model.PaymentMethodCreateParams
 import com.stripe.android.model.PaymentMethodOptionsParams
@@ -51,6 +53,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -234,6 +238,12 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
             }
         }
 
+        viewModelScope.launch {
+            saveForFutureUse.onEach { saveForFutureUse ->
+                updateScreenStateWithSaveForFutureUse(saveForFutureUse)
+            }.collect()
+        }
+
         val hasDefaultName = args.formArgs.billingDetails?.name != null &&
             args.formArgs.billingDetailsCollectionConfiguration.attachDefaultsToPaymentMethod
         val hasDefaultEmail = args.formArgs.billingDetails?.email != null &&
@@ -326,7 +336,7 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
                 last4 = result.last4,
                 intentId = result.intent.id,
                 primaryButtonText = buildPrimaryButtonText(),
-                mandateText = buildMandateText(),
+                mandateText = buildMandateText(isVerifyWithMicrodeposits = false),
             )
         }
     }
@@ -343,7 +353,7 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
                         financialConnectionsSessionId = usBankAccountData.financialConnectionsSession.id,
                         intentId = intentId,
                         primaryButtonText = buildPrimaryButtonText(),
-                        mandateText = buildMandateText(),
+                        mandateText = buildMandateText(isVerifyWithMicrodeposits = true),
                     )
                 }
             }
@@ -358,7 +368,7 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
                         last4 = paymentAccount.last4,
                         intentId = intentId,
                         primaryButtonText = buildPrimaryButtonText(),
-                        mandateText = buildMandateText(),
+                        mandateText = buildMandateText(isVerifyWithMicrodeposits = false),
                     )
                 }
             }
@@ -460,14 +470,9 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
 
     private fun collectBankAccountForIntent(clientSecret: String) {
         val configuration = if (args.instantDebits) {
-            CollectBankAccountConfiguration.InstantDebits(
-                email = email.value,
-            )
+            createInstantDebitsConfiguration()
         } else {
-            CollectBankAccountConfiguration.USBankAccount(
-                name = name.value,
-                email = email.value,
-            )
+            createUSBankAccountConfiguration()
         }
 
         if (args.isPaymentFlow) {
@@ -485,6 +490,33 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
                 configuration = configuration,
             )
         }
+    }
+
+    private fun createInstantDebitsConfiguration(): CollectBankAccountConfiguration.InstantDebits {
+        val initializationMode = if (args.clientSecret == null) {
+            ElementsSessionContext.InitializationMode.DeferredIntent
+        } else if (args.isPaymentFlow) {
+            ElementsSessionContext.InitializationMode.PaymentIntent(args.stripeIntentId!!)
+        } else {
+            ElementsSessionContext.InitializationMode.SetupIntent(args.stripeIntentId!!)
+        }
+
+        return CollectBankAccountConfiguration.InstantDebits(
+            email = email.value,
+            elementsSessionContext = ElementsSessionContext(
+                initializationMode = initializationMode,
+                amount = args.formArgs.amount?.value,
+                currency = args.formArgs.amount?.currencyCode,
+                linkMode = args.linkMode,
+            ),
+        )
+    }
+
+    private fun createUSBankAccountConfiguration(): CollectBankAccountConfiguration.USBankAccount {
+        return CollectBankAccountConfiguration.USBankAccount(
+            name = name.value,
+            email = email.value,
+        )
     }
 
     private fun collectBankAccountForDeferredIntent() {
@@ -552,6 +584,10 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
                     paymentMethodId = resultIdentifier.id,
                     requiresMandate = true,
                     productUsage = setOf("PaymentSheet"),
+                    allowRedisplay = args.formArgs.paymentMethodSaveConsentBehavior.allowRedisplay(
+                        isSetupIntent = args.formArgs.hasIntentToSetup,
+                        customerRequestedSave = customerRequestedSave,
+                    ),
                 )
             }
             is ResultIdentifier.Session -> {
@@ -564,7 +600,11 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
                         email = email.value,
                         phone = phone.value,
                         address = address.value,
-                    )
+                    ),
+                    allowRedisplay = args.formArgs.paymentMethodSaveConsentBehavior.allowRedisplay(
+                        isSetupIntent = args.formArgs.hasIntentToSetup,
+                        customerRequestedSave = customerRequestedSave,
+                    ),
                 )
             }
         }
@@ -572,6 +612,7 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
         val instantDebitsInfo = (resultIdentifier as? ResultIdentifier.PaymentMethod)?.let {
             PaymentSelection.New.USBankAccount.InstantDebitsInfo(
                 paymentMethodId = it.id,
+                linkMode = args.linkMode,
             )
         }
 
@@ -618,10 +659,24 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
         }
     }
 
-    private fun buildMandateText(): ResolvableString {
-        return USBankAccountTextBuilder.getContinueMandateText(
+    private fun updateScreenStateWithSaveForFutureUse(saveForFutureUse: Boolean) {
+        _currentScreenState.update { state ->
+            val mandateText = buildMandateText(
+                isVerifyWithMicrodeposits = state is USBankAccountFormScreenState.VerifyWithMicrodeposits,
+                isSaveForFutureUseSelected = saveForFutureUse,
+            )
+            state.updateWithMandate(mandateText)
+        }
+    }
+
+    private fun buildMandateText(
+        isVerifyWithMicrodeposits: Boolean,
+        isSaveForFutureUseSelected: Boolean = saveForFutureUse.value,
+    ): ResolvableString {
+        return USBankAccountTextBuilder.buildMandateAndMicrodepositsText(
             merchantName = formattedMerchantName(),
-            isSaveForFutureUseSelected = saveForFutureUse.value,
+            isVerifyingMicrodeposits = isVerifyWithMicrodeposits,
+            isSaveForFutureUseSelected = isSaveForFutureUseSelected,
             isInstantDebits = args.instantDebits,
             isSetupFlow = !args.isPaymentFlow,
         )
@@ -646,6 +701,7 @@ internal class USBankAccountFormViewModel @Inject internal constructor(
 
     data class Args(
         val instantDebits: Boolean,
+        val linkMode: LinkMode?,
         val formArgs: FormArguments,
         val showCheckbox: Boolean,
         val isCompleteFlow: Boolean,

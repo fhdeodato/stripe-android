@@ -4,7 +4,9 @@ import com.stripe.android.core.strings.ResolvableString
 import com.stripe.android.lpmfoundations.paymentmethod.PaymentMethodMetadata
 import com.stripe.android.model.PaymentMethod
 import com.stripe.android.model.PaymentMethodCode
+import com.stripe.android.paymentsheet.CustomerStateHolder
 import com.stripe.android.paymentsheet.DisplayableSavedPaymentMethod
+import com.stripe.android.paymentsheet.SavedPaymentMethodMutator
 import com.stripe.android.paymentsheet.viewmodels.BaseSheetViewModel
 
 internal interface ManageOneSavedPaymentMethodInteractor {
@@ -48,15 +50,17 @@ internal class DefaultManageOneSavedPaymentMethodInteractor(
 
     companion object {
         fun create(
-            sheetViewModel: BaseSheetViewModel,
+            viewModel: BaseSheetViewModel,
             paymentMethodMetadata: PaymentMethodMetadata,
+            customerStateHolder: CustomerStateHolder,
+            savedPaymentMethodMutator: SavedPaymentMethodMutator,
         ): ManageOneSavedPaymentMethodInteractor {
             return DefaultManageOneSavedPaymentMethodInteractor(
-                paymentMethod = sheetViewModel.savedPaymentMethodMutator.paymentMethods.value.first(),
+                paymentMethod = customerStateHolder.paymentMethods.value.first(),
                 paymentMethodMetadata = paymentMethodMetadata,
-                providePaymentMethodName = sheetViewModel.savedPaymentMethodMutator.providePaymentMethodName,
-                onDeletePaymentMethod = sheetViewModel.savedPaymentMethodMutator::removePaymentMethod,
-                navigateBack = sheetViewModel::handleBackPressed,
+                providePaymentMethodName = savedPaymentMethodMutator.providePaymentMethodName,
+                onDeletePaymentMethod = savedPaymentMethodMutator::removePaymentMethod,
+                navigateBack = viewModel::handleBackPressed,
             )
         }
     }

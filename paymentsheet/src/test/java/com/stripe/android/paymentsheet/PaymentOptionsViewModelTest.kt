@@ -2,7 +2,6 @@ package com.stripe.android.paymentsheet
 
 import androidx.appcompat.app.AppCompatActivity
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import app.cash.turbine.turbineScope
 import com.google.common.truth.Truth.assertThat
@@ -39,6 +38,7 @@ import com.stripe.android.paymentsheet.utils.LinkTestUtils
 import com.stripe.android.testing.PaymentIntentFactory
 import com.stripe.android.testing.PaymentMethodFactory
 import com.stripe.android.utils.FakeLinkConfigurationCoordinator
+import com.stripe.android.utils.NullCardAccountRangeRepositoryFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -185,40 +185,11 @@ internal class PaymentOptionsViewModelTest {
         viewModel.navigationHandler.currentScreen.test {
             assertThat(awaitItem()).isInstanceOf<PaymentSheetScreen.AddAnotherPaymentMethod>()
 
-            verify(eventReporter).onShowNewPaymentOptionForm()
+            verify(eventReporter).onShowNewPaymentOptions()
 
             viewModel.handleBackPressed()
             assertThat(awaitItem()).isInstanceOf<SelectSavedPaymentMethods>()
         }
-    }
-
-    @Test
-    fun `removePaymentMethod removes it from payment methods list`() = runTest {
-        val cards = PaymentMethodFixtures.createCards(3)
-        val viewModel = createViewModel(
-            args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(paymentMethods = cards)
-        )
-
-        viewModel.savedPaymentMethodMutator.removePaymentMethod(cards[1])
-
-        assertThat(viewModel.savedPaymentMethodMutator.paymentMethods.value)
-            .containsExactly(cards[0], cards[2])
-    }
-
-    @Test
-    fun `Removing selected payment method clears selection`() = runTest {
-        val cards = PaymentMethodFixtures.createCards(3)
-        val viewModel = createViewModel(
-            args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(paymentMethods = cards)
-        )
-
-        val selection = PaymentSelection.Saved(cards[1])
-        viewModel.updateSelection(selection)
-        assertThat(viewModel.selection.value).isEqualTo(selection)
-
-        viewModel.savedPaymentMethodMutator.removePaymentMethod(selection.paymentMethod)
-
-        assertThat(viewModel.selection.value).isNull()
     }
 
     @Test
@@ -232,7 +203,7 @@ internal class PaymentOptionsViewModelTest {
 
         viewModel.savedPaymentMethodMutator.removePaymentMethod(paymentMethod)
 
-        assertThat(viewModel.savedPaymentMethodMutator.paymentMethods.value).isEmpty()
+        assertThat(viewModel.customerStateHolder.paymentMethods.value).isEmpty()
         assertThat(viewModel.primaryButtonUiState.value).isNull()
         assertThat(viewModel.mandateHandler.mandateText.value?.text).isNull()
     }
@@ -242,6 +213,7 @@ internal class PaymentOptionsViewModelTest {
         val viewModel = createViewModel(
             linkState = LinkState(
                 configuration = mock(),
+                signupMode = null,
                 loginState = LinkState.LoginState.LoggedOut,
             ),
         )
@@ -270,32 +242,6 @@ internal class PaymentOptionsViewModelTest {
             viewModel.updatePrimaryButtonState(PrimaryButton.State.Ready)
 
             assertThat(awaitItem()).isEqualTo(PrimaryButton.State.Ready)
-        }
-    }
-
-    @Test
-    fun `paymentMethods is not empty if customer has payment methods`() = runTest {
-        val viewModel = createViewModel(
-            args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(
-                paymentMethods = listOf(PaymentMethodFixtures.CARD_PAYMENT_METHOD)
-            )
-        )
-
-        viewModel.savedPaymentMethodMutator.paymentMethods.test {
-            assertThat(awaitItem()).isNotEmpty()
-        }
-    }
-
-    @Test
-    fun `paymentMethods is empty if customer has no payment methods`() = runTest {
-        val viewModel = createViewModel(
-            args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(
-                paymentMethods = listOf()
-            )
-        )
-
-        viewModel.savedPaymentMethodMutator.paymentMethods.test {
-            assertThat(awaitItem()).isEmpty()
         }
     }
 
@@ -399,6 +345,72 @@ internal class PaymentOptionsViewModelTest {
         }
 
     @Test
+    fun `currentScreen is Form if payment methods is empty and supportedPaymentMethods contains one in automatic`() =
+        runTest {
+            val viewModel = createViewModel(
+                args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(
+                    config = PaymentSheetFixtures.CONFIG_CUSTOMER_WITH_GOOGLEPAY.copy(
+                        paymentMethodLayout = PaymentSheet.PaymentMethodLayout.Automatic,
+                    ),
+                    paymentMethods = listOf(),
+                    isGooglePayReady = false,
+                    linkState = null,
+                    stripeIntent = PaymentIntentFixtures.PI_WITH_PAYMENT_METHOD!!.copy(
+                        paymentMethodTypes = listOf("card")
+                    ),
+                )
+            )
+
+            viewModel.navigationHandler.currentScreen.test {
+                assertThat(awaitItem()).isInstanceOf<PaymentSheetScreen.VerticalModeForm>()
+            }
+        }
+
+    @Test
+    fun `currentScreen is VerticalMode if payment methods is not empty in automatic`() =
+        runTest {
+            val viewModel = createViewModel(
+                args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(
+                    config = PaymentSheetFixtures.CONFIG_CUSTOMER_WITH_GOOGLEPAY.copy(
+                        paymentMethodLayout = PaymentSheet.PaymentMethodLayout.Automatic,
+                    ),
+                    paymentMethods = listOf(PaymentMethodFixtures.CARD_PAYMENT_METHOD),
+                    isGooglePayReady = false,
+                    linkState = null,
+                    stripeIntent = PaymentIntentFixtures.PI_WITH_PAYMENT_METHOD!!.copy(
+                        paymentMethodTypes = listOf("card")
+                    ),
+                )
+            )
+
+            viewModel.navigationHandler.currentScreen.test {
+                assertThat(awaitItem()).isInstanceOf<PaymentSheetScreen.VerticalMode>()
+            }
+        }
+
+    @Test
+    fun `currentScreen is VerticalMode if supportedPaymentMethods is greater than 1 in Automatic`() =
+        runTest {
+            val viewModel = createViewModel(
+                args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(
+                    config = PaymentSheetFixtures.CONFIG_CUSTOMER_WITH_GOOGLEPAY.copy(
+                        paymentMethodLayout = PaymentSheet.PaymentMethodLayout.Automatic,
+                    ),
+                    paymentMethods = listOf(),
+                    isGooglePayReady = false,
+                    linkState = null,
+                    stripeIntent = PaymentIntentFixtures.PI_WITH_PAYMENT_METHOD!!.copy(
+                        paymentMethodTypes = listOf("card", "cashapp")
+                    ),
+                )
+            )
+
+            viewModel.navigationHandler.currentScreen.test {
+                assertThat(awaitItem()).isInstanceOf<PaymentSheetScreen.VerticalMode>()
+            }
+        }
+
+    @Test
     fun `onError updates error`() = runTest {
         val viewModel = createViewModel()
 
@@ -461,22 +473,6 @@ internal class PaymentOptionsViewModelTest {
             assertThat(awaitItem()).isEqualTo(savedSelection)
             assertThat(viewModel.newPaymentSelection).isEqualTo(null)
         }
-    }
-
-    @Test
-    fun `Ignores payment selection while in edit mode`() = runTest {
-        val viewModel = createViewModel().apply {
-            updateSelection(PaymentSelection.Link)
-        }
-
-        viewModel.savedPaymentMethodMutator.toggleEditing()
-        viewModel.handlePaymentMethodSelected(PaymentSelection.GooglePay)
-
-        assertThat(viewModel.selection.value).isEqualTo(PaymentSelection.Link)
-
-        viewModel.savedPaymentMethodMutator.toggleEditing()
-        viewModel.handlePaymentMethodSelected(PaymentSelection.GooglePay)
-        assertThat(viewModel.selection.value).isEqualTo(PaymentSelection.GooglePay)
     }
 
     @Test
@@ -659,7 +655,7 @@ internal class PaymentOptionsViewModelTest {
         val cards = PaymentMethodFactory.cards(3)
         val paymentMethodToRemove = cards.first()
 
-        whenever(customerRepository.detachPaymentMethod(any(), eq(paymentMethodToRemove.id!!))).thenReturn(
+        whenever(customerRepository.detachPaymentMethod(any(), eq(paymentMethodToRemove.id!!), eq(false))).thenReturn(
             Result.success(paymentMethodToRemove)
         )
 
@@ -674,7 +670,7 @@ internal class PaymentOptionsViewModelTest {
 
         turbineScope {
             val screenTurbine = viewModel.navigationHandler.currentScreen.testIn(this)
-            val paymentMethodsTurbine = viewModel.savedPaymentMethodMutator.paymentMethods.testIn(this)
+            val paymentMethodsTurbine = viewModel.customerStateHolder.paymentMethods.testIn(this)
 
             assertThat(screenTurbine.awaitItem()).isInstanceOf<SelectSavedPaymentMethods>()
 
@@ -711,7 +707,7 @@ internal class PaymentOptionsViewModelTest {
         val cards = PaymentMethodFactory.cards(3)
         val paymentMethodToRemove = cards.first()
 
-        whenever(customerRepository.detachPaymentMethod(any(), eq(paymentMethodToRemove.id!!))).thenReturn(
+        whenever(customerRepository.detachPaymentMethod(any(), eq(paymentMethodToRemove.id!!), eq(false))).thenReturn(
             Result.failure(APIConnectionException())
         )
 
@@ -726,7 +722,7 @@ internal class PaymentOptionsViewModelTest {
 
         turbineScope {
             val screenTurbine = viewModel.navigationHandler.currentScreen.testIn(this)
-            val paymentMethodsTurbine = viewModel.savedPaymentMethodMutator.paymentMethods.testIn(this)
+            val paymentMethodsTurbine = viewModel.customerStateHolder.paymentMethods.testIn(this)
 
             assertThat(screenTurbine.awaitItem()).isInstanceOf<SelectSavedPaymentMethods>()
 
@@ -752,6 +748,7 @@ internal class PaymentOptionsViewModelTest {
         val args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(
             linkState = LinkState(
                 configuration = mock(),
+                signupMode = null,
                 loginState = LinkState.LoginState.NeedsVerification,
             ),
             isGooglePayReady = false,
@@ -808,24 +805,6 @@ internal class PaymentOptionsViewModelTest {
             )
         }
 
-    @Test
-    fun `paymentMethods is not null when loading is complete`() = runTest {
-        val args = PAYMENT_OPTION_CONTRACT_ARGS.updateState(
-            isGooglePayReady = true,
-        ).run {
-            copy(state = state.copy(customer = null))
-        }
-
-        val viewModel = createViewModel(args = args)
-
-        viewModel.navigationHandler.currentScreen.test {
-            assertThat(awaitItem()).isInstanceOf<SelectSavedPaymentMethods>()
-        }
-        viewModel.savedPaymentMethodMutator.paymentMethods.test {
-            assertThat(awaitItem()).isEmpty()
-        }
-    }
-
     private fun createLinkViewModel(): PaymentOptionsViewModel {
         val linkConfigurationCoordinator = FakeLinkConfigurationCoordinator(
             attachNewCardToAccountResult = Result.success(LinkTestUtils.LINK_NEW_PAYMENT_DETAILS),
@@ -835,6 +814,7 @@ internal class PaymentOptionsViewModelTest {
         return createViewModel(
             linkState = LinkState(
                 configuration = LinkTestUtils.createLinkConfiguration(),
+                signupMode = null,
                 loginState = LinkState.LoginState.LoggedOut
             ),
             linkConfigurationCoordinator = linkConfigurationCoordinator,
@@ -846,16 +826,15 @@ internal class PaymentOptionsViewModelTest {
         linkState: LinkState? = args.state.linkState,
         editInteractorFactory: ModifiableEditPaymentMethodViewInteractor.Factory = mock(),
         linkConfigurationCoordinator: LinkConfigurationCoordinator = FakeLinkConfigurationCoordinator()
-    ) = TestViewModelFactory.create(linkConfigurationCoordinator) { linkHandler, linkInteractor, savedStateHandle ->
+    ) = TestViewModelFactory.create(linkConfigurationCoordinator) { linkHandler, savedStateHandle ->
         PaymentOptionsViewModel(
             args = args.copy(state = args.state.copy(linkState = linkState)),
             eventReporter = eventReporter,
             customerRepository = customerRepository,
             workContext = testDispatcher,
-            application = ApplicationProvider.getApplicationContext(),
             savedStateHandle = savedStateHandle,
             linkHandler = linkHandler,
-            linkConfigurationCoordinator = linkInteractor,
+            cardAccountRangeRepositoryFactory = NullCardAccountRangeRepositoryFactory,
             editInteractorFactory = editInteractorFactory,
         )
     }

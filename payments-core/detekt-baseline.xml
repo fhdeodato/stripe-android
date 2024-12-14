@@ -7,7 +7,6 @@
     <ID>ComplexCondition:ExpiryDateEditText.kt$ExpiryDateEditText.&lt;no name provided>$expirationDate.month.length == 2 &amp;&amp; latestInsertionSize > 0 &amp;&amp; !inErrorState || rawNumericInput.length > 2</ID>
     <ID>ConstructorParameterNaming:Source.kt$Source$private val _klarna: Klarna? = null</ID>
     <ID>ConstructorParameterNaming:Source.kt$Source$private val _weChat: WeChat? = null</ID>
-    <ID>CyclomaticComplexMethod:CardBrandView.kt$@Composable private fun CardBrand( isLoading: Boolean, currentBrand: CardBrand, possibleBrands: List&lt;CardBrand>, shouldShowCvc: Boolean, shouldShowErrorIcon: Boolean, tintColorInt: Int, isCbcEligible: Boolean, reserveSpaceForCbcDropdown: Boolean, modifier: Modifier = Modifier, onBrandSelected: (CardBrand?) -> Unit, )</ID>
     <ID>CyclomaticComplexMethod:NextActionDataParser.kt$NextActionDataParser$override fun parse( json: JSONObject ): StripeIntent.NextActionData?</ID>
     <ID>CyclomaticComplexMethod:PaymentMethodJsonParser.kt$PaymentMethodJsonParser$override fun parse(json: JSONObject): PaymentMethod</ID>
     <ID>CyclomaticComplexMethod:Source.kt$Source.Companion$@SourceType @JvmStatic fun asSourceType(sourceType: String?): String</ID>
@@ -29,6 +28,7 @@
     <ID>LargeClass:CardMultilineWidgetTest.kt$CardMultilineWidgetTest</ID>
     <ID>LargeClass:CardNumberEditTextTest.kt$CardNumberEditTextTest</ID>
     <ID>LargeClass:CustomerSessionTest.kt$CustomerSessionTest</ID>
+    <ID>LargeClass:ElementsSessionJsonParserTest.kt$ElementsSessionJsonParserTest</ID>
     <ID>LargeClass:PaymentIntentFixtures.kt$PaymentIntentFixtures</ID>
     <ID>LargeClass:SetupIntentFixtures.kt$SetupIntentFixtures</ID>
     <ID>LargeClass:SourceParamsTest.kt$SourceParamsTest</ID>
@@ -36,13 +36,14 @@
     <ID>LargeClass:StripeApiRepository.kt$StripeApiRepository : StripeRepository</ID>
     <ID>LargeClass:StripeApiRepositoryTest.kt$StripeApiRepositoryTest</ID>
     <ID>LargeClass:StripeKtxTest.kt$StripeKtxTest</ID>
-    <ID>LongMethod:CardBrandView.kt$@Composable private fun CardBrand( isLoading: Boolean, currentBrand: CardBrand, possibleBrands: List&lt;CardBrand>, shouldShowCvc: Boolean, shouldShowErrorIcon: Boolean, tintColorInt: Int, isCbcEligible: Boolean, reserveSpaceForCbcDropdown: Boolean, modifier: Modifier = Modifier, onBrandSelected: (CardBrand?) -> Unit, )</ID>
     <ID>LongMethod:CardFormView.kt$CardFormView$private fun setupCardWidget()</ID>
     <ID>LongMethod:CardFormViewTest.kt$CardFormViewTest$@Test fun testCardValidCallback()</ID>
     <ID>LongMethod:CardInputWidget.kt$CardInputWidget$private fun initView(attrs: AttributeSet?)</ID>
     <ID>LongMethod:CustomerSessionOperationExecutor.kt$CustomerSessionOperationExecutor$@JvmSynthetic internal suspend fun execute( ephemeralKey: EphemeralKey, operation: EphemeralOperation )</ID>
     <ID>LongMethod:CustomerSessionTest.kt$CustomerSessionTest$@BeforeTest fun setup()</ID>
     <ID>LongMethod:CustomerSessionTest.kt$CustomerSessionTest$private suspend fun setupErrorProxy()</ID>
+    <ID>LongMethod:ElementsSessionFixtures.kt$ElementsSessionFixtures$fun createPaymentIntentWithCustomerSession( allowRedisplay: String? = "limited" ): JSONObject</ID>
+    <ID>LongMethod:ElementsSessionJsonParserTest.kt$ElementsSessionJsonParserTest$@Test fun `ElementsSession has expected customer session information in the response`()</ID>
     <ID>LongMethod:GooglePayJsonFactoryTest.kt$GooglePayJsonFactoryTest$@Test fun testCreatePaymentMethodRequestJson()</ID>
     <ID>LongMethod:PaymentAuthConfigTest.kt$PaymentAuthConfigTest$@Test fun testUiCustomizationWrapper()</ID>
     <ID>LongMethod:PaymentAuthWebViewActivity.kt$PaymentAuthWebViewActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
@@ -54,7 +55,6 @@
     <ID>LongMethod:Stripe3ds2ChallengeResultProcessor.kt$DefaultStripe3ds2ChallengeResultProcessor$override suspend fun process( challengeResult: ChallengeResult ): PaymentFlowResult.Unvalidated</ID>
     <ID>LongMethod:Stripe3ds2TransactionActivity.kt$Stripe3ds2TransactionActivity$public override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:StripeApiRepositoryTest.kt$StripeApiRepositoryTest$@Test fun getPaymentMethods_whenPopulated_returnsExpectedList()</ID>
-    <ID>LongMethod:WebIntentAuthenticator.kt$WebIntentAuthenticator$override suspend fun performAuthentication( host: AuthActivityStarterHost, authenticatable: StripeIntent, requestOptions: ApiRequest.Options )</ID>
     <ID>MagicNumber:BecsDebitBsbEditText.kt$BecsDebitBsbEditText$3</ID>
     <ID>MagicNumber:BecsDebitBsbEditText.kt$BecsDebitBsbEditText.&lt;no name provided>$4</ID>
     <ID>MagicNumber:BecsDebitWidget.kt$BecsDebitWidget$4</ID>
@@ -70,7 +70,6 @@
     <ID>MagicNumber:DateUtils.kt$DateUtils$20</ID>
     <ID>MagicNumber:DateUtils.kt$DateUtils$80</ID>
     <ID>MagicNumber:ExpirationDate.kt$ExpirationDate.Unvalidated$3</ID>
-    <ID>MagicNumber:FraudDetectionDataRequestParamsFactory.kt$FraudDetectionDataRequestParamsFactory.Companion$60</ID>
     <ID>MagicNumber:PaymentAuthConfig.kt$PaymentAuthConfig.Stripe3ds2Config$5</ID>
     <ID>MagicNumber:PaymentAuthConfig.kt$PaymentAuthConfig.Stripe3ds2Config$99</ID>
     <ID>MagicNumber:PaymentMethodCreateParams.kt$PaymentMethodCreateParams$4</ID>
@@ -165,12 +164,10 @@
     <ID>SwallowedException:ActivityUtils.kt$e: IllegalArgumentException</ID>
     <ID>SwallowedException:PaymentUtils.kt$PaymentUtils$e: ClassCastException</ID>
     <ID>ThrowsCount:StripeApiRepository.kt$StripeApiRepository$@Throws( InvalidRequestException::class, AuthenticationException::class, CardException::class, APIException::class ) private fun handleApiError(response: StripeResponse&lt;String>)</ID>
-    <ID>TooGenericExceptionCaught:DefaultPaymentAuthenticatorRegistry.kt$e: Exception</ID>
     <ID>TooGenericExceptionThrown:DefaultAlipayRepository.kt$DefaultAlipayRepository$throw RuntimeException("Unable to authenticate Payment Intent with Alipay SDK")</ID>
     <ID>TooGenericExceptionThrown:PaymentFlowViewModelTest.kt$PaymentFlowViewModelTest.ThrowingShippingMethodsFactory$throw RuntimeException("Always throws an exception")</ID>
     <ID>TooManyFunctions:AccountParams.kt$AccountParams.BusinessTypeParams.Company$Builder</ID>
     <ID>TooManyFunctions:AccountParams.kt$AccountParams.BusinessTypeParams.Individual$Builder</ID>
-    <ID>TooManyFunctions:AuthenticationComponent.kt$AuthenticationComponent$Builder</ID>
     <ID>TooManyFunctions:CardInputWidget.kt$CardInputWidget : LinearLayoutCardWidget</ID>
     <ID>TooManyFunctions:CardMultilineWidget.kt$CardMultilineWidget : LinearLayoutCardWidget</ID>
     <ID>TooManyFunctions:CardWidget.kt$CardWidget</ID>

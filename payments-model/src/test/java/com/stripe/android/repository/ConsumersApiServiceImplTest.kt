@@ -8,7 +8,10 @@ import com.stripe.android.core.networking.ApiRequest
 import com.stripe.android.core.networking.DefaultStripeNetworkClient
 import com.stripe.android.core.utils.urlEncode
 import com.stripe.android.core.version.StripeSdkVersion
+import com.stripe.android.model.ConsumerPaymentDetails
+import com.stripe.android.model.ConsumerPaymentDetailsCreateParams
 import com.stripe.android.model.ConsumerSession
+import com.stripe.android.model.ConsumerSignUpConsentAction
 import com.stripe.android.model.VerificationType
 import com.stripe.android.networktesting.NetworkRule
 import com.stripe.android.networktesting.RequestMatchers.bodyPart
@@ -34,6 +37,51 @@ class ConsumersApiServiceImplTest {
     )
 
     @Test
+    fun `signUp() sends all parameters`() = runTest {
+        val email = "email@example.com"
+        val requestSurface = "android_payment_element"
+
+        networkRule.enqueue(
+            method("POST"),
+            path("/v1/consumers/accounts/sign_up"),
+            header("Authorization", "Bearer ${DEFAULT_OPTIONS.apiKey}"),
+            header("User-Agent", "Stripe/v1 ${StripeSdkVersion.VERSION}"),
+            bodyPart("email_address", "email%40example.com"),
+            bodyPart("phone_number", "%2B15555555568"),
+            bodyPart("country", "US"),
+            bodyPart("locale", "en-US"),
+            bodyPart("amount", "1234"),
+            bodyPart("currency", "cad"),
+            bodyPart(urlEncode("financial_incentive[payment_intent]"), "pi_123"),
+            bodyPart("consent_action", "clicked_checkbox_nospm_mobile_v0"),
+            bodyPart("request_surface", requestSurface),
+        ) { response ->
+            response.setBody(ConsumerFixtures.EXISTING_CONSUMER_JSON.toString())
+        }
+
+        val signup = consumersApiService.signUp(
+            email = email,
+            phoneNumber = "+15555555568",
+            country = "US",
+            name = null,
+            locale = Locale.US,
+            amount = 1234,
+            currency = "cad",
+            paymentIntentId = "pi_123",
+            setupIntentId = null,
+            consentAction = ConsumerSignUpConsentAction.Checkbox,
+            requestSurface = requestSurface,
+            requestOptions = DEFAULT_OPTIONS,
+        ).getOrThrow()
+
+        assertThat(signup.consumerSession.verificationSessions).isEmpty()
+        assertThat(signup.consumerSession.emailAddress).isEqualTo(email)
+        assertThat(signup.consumerSession.redactedPhoneNumber).isEqualTo("+1********68")
+        assertThat(signup.consumerSession.clientSecret).isEqualTo("secret")
+        assertThat(signup.publishableKey).isEqualTo("asdfg123")
+    }
+
+    @Test
     fun `lookupConsumerSession() sends all parameters`() = runTest {
         val email = "email@example.com"
         val requestSurface = "android_payment_element"
@@ -57,7 +105,6 @@ class ConsumersApiServiceImplTest {
 
         assertThat(lookup.exists).isTrue()
         assertThat(lookup.errorMessage).isNull()
-        assertThat(lookup.consumerSession?.publishableKey).isNull()
         assertThat(lookup.consumerSession?.verificationSessions).isEmpty()
         assertThat(lookup.consumerSession?.emailAddress).isEqualTo(email)
         assertThat(lookup.consumerSession?.redactedPhoneNumber).isEqualTo("+1********68")
@@ -156,6 +203,118 @@ class ConsumersApiServiceImplTest {
                 ConsumerSession.VerificationSession.SessionState.Verified
             )
         )
+    }
+
+    @Test
+    fun `createPaymentDetails() sends all parameters`() = runTest {
+        val email = "email@example.com"
+        val requestSurface = "android_payment_element"
+
+        networkRule.enqueue(
+            method("POST"),
+            path("/v1/consumers/payment_details"),
+            header("Authorization", "Bearer ${DEFAULT_OPTIONS.apiKey}"),
+            header("User-Agent", "Stripe/v1 ${StripeSdkVersion.VERSION}"),
+            bodyPart(urlEncode("credentials[consumer_session_client_secret]"), "secret"),
+            bodyPart("type", "card"),
+            bodyPart("active", "false"),
+            bodyPart("billing_email_address", urlEncode(email)),
+            bodyPart(urlEncode("card[number]"), "4242424242424242"),
+            bodyPart(urlEncode("card[exp_month]"), "12"),
+            bodyPart(urlEncode("card[exp_year]"), "2050"),
+            bodyPart(urlEncode("credentials[consumer_session_client_secret]"), "secret"),
+            bodyPart("request_surface", requestSurface),
+        ) { response ->
+            response.setBody(ConsumerFixtures.CONSUMER_SINGLE_CARD_PAYMENT_DETAILS_JSON.toString())
+        }
+
+        val paymentMethodCreateParams = mapOf(
+            "type" to "card",
+            "card" to mapOf(
+                "number" to "4242424242424242",
+                "exp_month" to "12",
+                "exp_year" to "2050",
+                "cvc" to "123",
+            ),
+            "billing_details" to mapOf(
+                "address" to mapOf(
+                    "country" to "US",
+                    "postal_code" to "12345"
+                ),
+            ),
+        )
+
+        val paymentDetails = consumersApiService.createPaymentDetails(
+            consumerSessionClientSecret = "secret",
+            paymentDetailsCreateParams = ConsumerPaymentDetailsCreateParams.Card(
+                cardPaymentMethodCreateParamsMap = paymentMethodCreateParams,
+                email = email,
+                active = false,
+            ),
+            requestSurface = requestSurface,
+            requestOptions = DEFAULT_OPTIONS,
+        ).getOrThrow()
+
+        val cardDetails = paymentDetails.paymentDetails.first() as ConsumerPaymentDetails.Card
+        assertThat(cardDetails.last4).isEqualTo("4242")
+    }
+
+    @Test
+    fun `createPaymentDetails() sends all parameters for card with preferred network`() = runTest {
+        val email = "email@example.com"
+        val requestSurface = "android_payment_element"
+
+        networkRule.enqueue(
+            method("POST"),
+            path("/v1/consumers/payment_details"),
+            header("Authorization", "Bearer ${DEFAULT_OPTIONS.apiKey}"),
+            header("User-Agent", "Stripe/v1 ${StripeSdkVersion.VERSION}"),
+            bodyPart(urlEncode("credentials[consumer_session_client_secret]"), "secret"),
+            bodyPart("type", "card"),
+            bodyPart("active", "false"),
+            bodyPart("billing_email_address", urlEncode(email)),
+            bodyPart(urlEncode("card[number]"), "4242424242424242"),
+            bodyPart(urlEncode("card[exp_month]"), "12"),
+            bodyPart(urlEncode("card[exp_year]"), "2050"),
+            bodyPart(urlEncode("card[preferred_network]"), "cartes_bancaires"),
+            bodyPart(urlEncode("credentials[consumer_session_client_secret]"), "secret"),
+            bodyPart("request_surface", requestSurface),
+        ) { response ->
+            response.setBody(ConsumerFixtures.CONSUMER_SINGLE_CARD_PAYMENT_DETAILS_JSON.toString())
+        }
+
+        val paymentMethodCreateParams = mapOf(
+            "type" to "card",
+            "card" to mapOf(
+                "number" to "4242424242424242",
+                "exp_month" to "12",
+                "exp_year" to "2050",
+                "cvc" to "123",
+                "networks" to mapOf(
+                    "preferred" to "cartes_bancaires",
+                )
+            ),
+            "billing_details" to mapOf(
+                "address" to mapOf(
+                    "country" to "US",
+                    "postal_code" to "12345"
+                ),
+            ),
+        )
+
+        val paymentDetails = consumersApiService.createPaymentDetails(
+            consumerSessionClientSecret = "secret",
+            paymentDetailsCreateParams = ConsumerPaymentDetailsCreateParams.Card(
+                cardPaymentMethodCreateParamsMap = paymentMethodCreateParams,
+                email = email,
+                active = false,
+            ),
+            requestSurface = requestSurface,
+            requestOptions = DEFAULT_OPTIONS,
+        ).getOrThrow()
+
+        val cardDetails = paymentDetails.paymentDetails.first() as ConsumerPaymentDetails.Card
+        assertThat(cardDetails.last4).isEqualTo("4242")
     }
 
     @Test

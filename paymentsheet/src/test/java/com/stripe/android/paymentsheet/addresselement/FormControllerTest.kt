@@ -36,7 +36,6 @@ class FormControllerTest {
     private val transformSpecToElements = TransformSpecToElements(
         UiDefinitionFactory.Arguments(
             initialValues = emptyMap(),
-            amount = null,
             saveForFutureUseInitialValue = false,
             merchantName = "Merchant",
             cardAccountRangeRepositoryFactory = DefaultCardAccountRangeRepositoryFactory(context),
@@ -44,6 +43,8 @@ class FormControllerTest {
             cbcEligibility = CardBrandChoiceEligibility.Ineligible,
             billingDetailsCollectionConfiguration = PaymentSheet.BillingDetailsCollectionConfiguration(),
             requiresMandate = false,
+            linkConfigurationCoordinator = null,
+            onLinkInlineSignupStateChanged = { throw AssertionError("Not implemented") },
         )
     )
 

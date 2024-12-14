@@ -8,6 +8,7 @@ import com.stripe.android.model.PaymentMethodFixtures
 import com.stripe.android.model.PaymentMethodFixtures.toDisplayableSavedPaymentMethod
 import com.stripe.android.paymentsheet.DisplayableSavedPaymentMethod
 import com.stripe.android.screenshottesting.PaparazziRule
+import com.stripe.android.utils.screenshots.PaymentSheetAppearance
 import org.junit.Rule
 import org.junit.Test
 
@@ -15,6 +16,7 @@ internal class ManageScreenUIScreenshotTest {
 
     @get:Rule
     val paparazziRule = PaparazziRule(
+        PaymentSheetAppearance.entries,
         boxModifier = Modifier
             .padding(16.dp)
     )
@@ -28,7 +30,7 @@ internal class ManageScreenUIScreenshotTest {
                         paymentMethods = savedPaymentMethods,
                         currentSelection = null,
                         isEditing = false,
-                        canDelete = true,
+                        canRemove = true,
                         canEdit = true,
                     )
                 ),
@@ -45,7 +47,7 @@ internal class ManageScreenUIScreenshotTest {
                         paymentMethods = savedPaymentMethods,
                         currentSelection = savedPaymentMethods[1],
                         isEditing = false,
-                        canDelete = true,
+                        canRemove = true,
                         canEdit = true,
                     )
                 ),
@@ -62,7 +64,7 @@ internal class ManageScreenUIScreenshotTest {
                         paymentMethods = savedPaymentMethods,
                         currentSelection = null,
                         isEditing = true,
-                        canDelete = true,
+                        canRemove = true,
                         canEdit = true,
                     )
                 ),
@@ -81,7 +83,7 @@ internal class ManageScreenUIScreenshotTest {
                         ),
                         currentSelection = null,
                         isEditing = true,
-                        canDelete = false,
+                        canRemove = false,
                         canEdit = true,
                     )
                 ),

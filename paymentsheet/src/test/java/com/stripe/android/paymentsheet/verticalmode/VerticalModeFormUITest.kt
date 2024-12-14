@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import com.google.common.truth.Truth.assertThat
 import com.stripe.android.lpmfoundations.paymentmethod.PaymentMethodMetadataFactory
+import com.stripe.android.lpmfoundations.paymentmethod.PaymentMethodSaveConsentBehavior
 import com.stripe.android.lpmfoundations.paymentmethod.UiDefinitionFactory
 import com.stripe.android.lpmfoundations.paymentmethod.definitions.CardDefinition
 import com.stripe.android.lpmfoundations.paymentmethod.definitions.KlarnaDefinition
@@ -24,7 +25,6 @@ import com.stripe.android.paymentsheet.ui.FORM_ELEMENT_TEST_TAG
 import com.stripe.android.ui.core.Amount
 import com.stripe.android.ui.core.cbc.CardBrandChoiceEligibility
 import com.stripe.android.ui.core.elements.events.LocalCardNumberCompletedEventReporter
-import com.stripe.android.utils.FakeLinkConfigurationCoordinator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.Rule
@@ -43,7 +43,7 @@ internal class VerticalModeFormUITest {
     private val formPage = FormPage(composeRule)
 
     @Test
-    fun testWithCardProperties() = runScenario(createCardState()) {
+    fun testWithCardProperties() = runScenario(createCardState(customerHasSavedPaymentMethods = true)) {
         viewActionRecorder.consume(VerticalModeFormInteractor.ViewAction.FormFieldValuesChanged(null))
         assertThat(viewActionRecorder.viewActions).isEmpty()
         formPage.cardNumber.performTextInput("4242")
@@ -67,10 +67,19 @@ internal class VerticalModeFormUITest {
     }
 
     @Test
-    fun testCardShowsHeader() = runScenario(createCardState()) {
+    fun testCardShowsHeader() = runScenario(createCardState(customerHasSavedPaymentMethods = true)) {
         formPage.headerIcon.assertDoesNotExist()
         formPage.title.assertExists()
         formPage.title.assert(hasText("Add new card"))
+    }
+
+    @Test
+    fun testCardShowsAddCardHeader_whenCustomerHasNoSavedPMs() = runScenario(
+        createCardState(customerHasSavedPaymentMethods = false)
+    ) {
+        formPage.headerIcon.assertDoesNotExist()
+        formPage.title.assertExists()
+        formPage.title.assert(hasText("Add card"))
     }
 
     @Test
@@ -113,13 +122,19 @@ internal class VerticalModeFormUITest {
                 viewActionRecorder.record(viewAction)
             }
 
+            override fun canGoBack(): Boolean {
+                return true
+            }
+
             override fun close() {}
         }
     }
 
-    private fun createCardState(): VerticalModeFormInteractor.State {
+    private fun createCardState(customerHasSavedPaymentMethods: Boolean): VerticalModeFormInteractor.State {
         val headerInformation =
-            (CardDefinition.uiDefinitionFactory() as UiDefinitionFactory.Simple).createFormHeaderInformation()
+            (CardDefinition.uiDefinitionFactory() as UiDefinitionFactory.Simple).createFormHeaderInformation(
+                customerHasSavedPaymentMethods = customerHasSavedPaymentMethods,
+            )
         return VerticalModeFormInteractor.State(
             selectedPaymentMethodCode = PaymentMethod.Type.Card.code,
             isProcessing = false,
@@ -132,10 +147,10 @@ internal class VerticalModeFormUITest {
                 billingDetails = null,
                 shippingDetails = null,
                 billingDetailsCollectionConfiguration = PaymentSheet.BillingDetailsCollectionConfiguration(),
+                hasIntentToSetup = false,
+                paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
             ),
             formElements = CardDefinition.formElements(),
-            linkSignupMode = null,
-            linkConfigurationCoordinator = FakeLinkConfigurationCoordinator(),
             headerInformation = headerInformation,
         )
     }
@@ -148,7 +163,7 @@ internal class VerticalModeFormUITest {
                     "cashapp"
                 )
             )
-        ).formHeaderInformationForCode("cashapp")
+        ).formHeaderInformationForCode("cashapp", customerHasSavedPaymentMethods = true)
         return VerticalModeFormInteractor.State(
             selectedPaymentMethodCode = PaymentMethod.Type.CashAppPay.code,
             isProcessing = false,
@@ -161,10 +176,10 @@ internal class VerticalModeFormUITest {
                 billingDetails = null,
                 shippingDetails = null,
                 billingDetailsCollectionConfiguration = PaymentSheet.BillingDetailsCollectionConfiguration(),
+                hasIntentToSetup = false,
+                paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
             ),
             formElements = emptyList(),
-            linkSignupMode = null,
-            linkConfigurationCoordinator = FakeLinkConfigurationCoordinator(),
             headerInformation = headerInformation,
         )
     }
@@ -178,7 +193,10 @@ internal class VerticalModeFormUITest {
                 )
             )
         )
-        val headerInformation = paymentMethodMetadata.formHeaderInformationForCode("klarna")
+        val headerInformation = paymentMethodMetadata.formHeaderInformationForCode(
+            "klarna",
+            customerHasSavedPaymentMethods = true,
+        )
         return VerticalModeFormInteractor.State(
             selectedPaymentMethodCode = PaymentMethod.Type.Klarna.code,
             isProcessing = false,
@@ -191,10 +209,10 @@ internal class VerticalModeFormUITest {
                 billingDetails = null,
                 shippingDetails = null,
                 billingDetailsCollectionConfiguration = PaymentSheet.BillingDetailsCollectionConfiguration(),
+                hasIntentToSetup = false,
+                paymentMethodSaveConsentBehavior = PaymentMethodSaveConsentBehavior.Legacy,
             ),
             formElements = KlarnaDefinition.formElements(paymentMethodMetadata),
-            linkSignupMode = null,
-            linkConfigurationCoordinator = FakeLinkConfigurationCoordinator(),
             headerInformation = headerInformation,
         )
     }

@@ -9,6 +9,7 @@ import com.stripe.android.core.Logger
 import com.stripe.android.core.exception.APIException
 import com.stripe.android.financialconnections.ApiKeyFixtures.sessionManifest
 import com.stripe.android.financialconnections.ApiKeyFixtures.syncResponse
+import com.stripe.android.financialconnections.FinancialConnectionsSheet.ElementsSessionContext
 import com.stripe.android.financialconnections.FinancialConnectionsSheetState.AuthFlowStatus
 import com.stripe.android.financialconnections.FinancialConnectionsSheetViewEffect.FinishWithResult
 import com.stripe.android.financialconnections.FinancialConnectionsSheetViewEffect.OpenAuthFlowWithUrl
@@ -31,6 +32,7 @@ import com.stripe.android.financialconnections.model.FinancialConnectionsAccount
 import com.stripe.android.financialconnections.model.FinancialConnectionsSession
 import com.stripe.android.financialconnections.model.FinancialConnectionsSession.StatusDetails
 import com.stripe.android.financialconnections.presentation.withState
+import com.stripe.android.model.LinkMode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -135,12 +137,20 @@ class FinancialConnectionsSheetViewModelTest {
             // Given
             whenever(browserManager.canOpenHttpsUrl()).thenReturn(true)
             whenever(getOrFetchSync(any())).thenReturn(syncResponse)
-            whenever(nativeRouter.nativeAuthFlowEnabled(any(), any())).thenReturn(false)
+            whenever(nativeRouter.nativeAuthFlowEnabled(any())).thenReturn(false)
 
             // When
             val viewModel = createViewModel(
                 defaultInitialState.copy(
-                    initialArgs = ForInstantDebits(configuration)
+                    initialArgs = ForInstantDebits(
+                        configuration = configuration,
+                        elementsSessionContext = ElementsSessionContext(
+                            initializationMode = ElementsSessionContext.InitializationMode.PaymentIntent("pi_123"),
+                            amount = 123,
+                            currency = "usd",
+                            linkMode = LinkMode.LinkPaymentMethod,
+                        ),
+                    )
                 )
             )
 
@@ -148,17 +158,48 @@ class FinancialConnectionsSheetViewModelTest {
             withState(viewModel) {
                 val viewEffect = it.viewEffect as OpenAuthFlowWithUrl
                 assertThat(viewEffect.url).isEqualTo(
-                    "${syncResponse.manifest.hostedAuthUrl}&return_payment_method=true"
+                    "${syncResponse.manifest.hostedAuthUrl}&return_payment_method=true&link_mode=LINK_PAYMENT_METHOD"
                 )
             }
         }
+
+    @Test
+    fun `init - when instant debits flow, hosted auth url doesn't contain link_mode if unknown`() = runTest {
+        // Given
+        whenever(browserManager.canOpenHttpsUrl()).thenReturn(true)
+        whenever(getOrFetchSync(any())).thenReturn(syncResponse)
+        whenever(nativeRouter.nativeAuthFlowEnabled(any())).thenReturn(false)
+
+        // When
+        val viewModel = createViewModel(
+            defaultInitialState.copy(
+                initialArgs = ForInstantDebits(
+                    configuration = configuration,
+                    elementsSessionContext = ElementsSessionContext(
+                        initializationMode = ElementsSessionContext.InitializationMode.PaymentIntent("pi_123"),
+                        amount = 123,
+                        currency = "usd",
+                        linkMode = null,
+                    ),
+                )
+            )
+        )
+
+        // Then
+        withState(viewModel) {
+            val viewEffect = it.viewEffect as OpenAuthFlowWithUrl
+            assertThat(viewEffect.url).isEqualTo(
+                "${syncResponse.manifest.hostedAuthUrl}&return_payment_method=true"
+            )
+        }
+    }
 
     @Test
     fun `init - when data flow and non-native, hosted auth url without query params is launched`() = runTest {
         // Given
         whenever(browserManager.canOpenHttpsUrl()).thenReturn(true)
         whenever(getOrFetchSync(any())).thenReturn(syncResponse)
-        whenever(nativeRouter.nativeAuthFlowEnabled(any(), any())).thenReturn(false)
+        whenever(nativeRouter.nativeAuthFlowEnabled(any())).thenReturn(false)
 
         // When
         val viewModel = createViewModel(

@@ -1,9 +1,68 @@
 # CHANGELOG
 
-## 20.48.2 - 2024-07-22
+## XX.XX.XX - 20XX-XX-XX
+
+## 20.52.1 - 2024-10-15
+
+### Basic integration
+* [DEPRECATED][9433](https://github.com/stripe/stripe-android/pull/9433) Basic integration is now deprecated and will be removed in a future release. [Please use Mobile Payment Element instead](https://docs.stripe.com/payments/mobile/migrating-to-mobile-payment-element-from-basic-integration).
+
+## 20.52.0 - 2024-10-07
+
+### CustomerSheet
+* [ADDED] `CustomerSheet` is now generally available. For more information see our docs [here](https://docs.stripe.com/elements/customer-sheet).
+* [ADDED] `CustomerSession` on `CustomerSheet` is now in private beta. For more information see our docs [here](https://docs.corp.stripe.com/elements/customer-sheet?platform=android&mobile-customer-session=customer-session).
+
+## 20.51.1 - 2024-09-30
+* Stability and efficiency improvements.
+
+## 20.51.0 - 2024-09-23
+
+### PaymentSheet
+* [BREAKING][9295](https://github.com/stripe/stripe-android/pull/9295) Remove `ExperimentalCvcRecollectionApi` annotation. This is a breaking change for merchants using `@OptIn(ExperimentalCvcRecollectionApi::class)`.
+* [ADDED] CVC Recollection is now in GA. For more information see our docs [here](https://docs.stripe.com/payments/accept-a-payment?platform=android#android-cvc-recollection) for intent first integrations or [here](https://docs.stripe.com/payments/accept-a-payment-deferred?platform=android&type=payment#android-cvc-recollection) for deferred intent integrations.
+
+## 20.50.1 - 2024-09-16
+
+### PaymentSheet
+* [FIXED][9253](https://github.com/stripe/stripe-android/pull/9253) Fixed an issue where the US Bank Account mandate would reset when confirming the intent.
+
+## 20.50.0 - 2024-09-12
+
+### PaymentSheet
+* [FIXED][9236](https://github.com/stripe/stripe-android/pull/9236) Fixed an issue where merchant-preferred networks configured for CardInput views were ignored.
+
+### CustomerSheet
+* [BREAKING][9234](https://github.com/stripe/stripe-android/pull/9234) Updated the experimental `CustomerSheet` API for better process death handling.
+
+## 20.49.0 - 2024-09-09
+
+* [ADDED] `CustomerSession` on `PaymentSheet` is now in private beta. For more information see our docs [here](https://docs.corp.stripe.com/payments/accept-a-payment?platform=android&mobile-customer-session=customer-session).
+* [BREAKING][9158](https://github.com/stripe/stripe-android/pull/9158) Updates to CVC recollection APIs, currently in private beta. Add `requireCvcRecollection` param to `IntentConfiguration`. This is a breaking change for merchants using `PaymentSheet.Builder.cvcRecollectionEnabledCallback` and `PaymentSheet.FlowController.Builder.cvcRecollectionEnabledCallback`. Requires opt-in for `ExperimentalCvcRecollectionApi` annotation.
+
+## 20.48.6 - 2024-08-26
+* Stability and efficiency improvements.
+
+## 20.48.5 - 2024-08-21
+
+### PaymentSheet
+* [FIXED][9111](https://github.com/stripe/stripe-android/pull/9111) Fixed an issue where Google Pay was displaying an error.
+
+## 20.48.4 - 2024-08-09
+
+### Payments
+* [FIXED][9011](https://github.com/stripe/stripe-android/pull/9011) Fixed an issue where rendering Card Element in React Native and the base `Activity` would cause a crash.
+
+## 20.48.3 - 2024-08-05
+
+### PaymentSheet
+* [FIXED][8971](https://github.com/stripe/stripe-android/pull/8971) Fixed a crash caused by an index out of bounds exception
+
+## 20.48.2 - 2024-07-29
 
 ### PaymentSheet
 * [FIXED][8825](https://github.com/stripe/stripe-android/pull/8825) Fixed an issue the amount in the buy button in `PaymentSheet` did not formatted with set per-application locale.
+* [FIXED][8928](https://github.com/stripe/stripe-android/pull/8928) Fixed an issue in where changing country from the US to Canada would crash if certain states were selected.
 
 ## 20.48.1 - 2024-07-15
 

@@ -54,6 +54,7 @@ dependencies {
 
     testImplementation project(':link')
     testImplementation project(':financial-connections')
+    testImplementation project(':network-testing')
     testImplementation project(':payments-core-testing')
     testImplementation project(':screenshot-testing')
 
@@ -77,6 +78,7 @@ dependencies {
     testImplementation testLibs.robolectric
     testImplementation testLibs.truth
     testImplementation testLibs.turbine
+    testImplementation testLibs.espresso.intents
 
     // temporary fix for running compose test in RobolectricTestRunner, see https://github.com/robolectric/robolectric/issues/6593
     testImplementation testLibs.espresso.core
@@ -100,10 +102,12 @@ dependencies {
     androidTestImplementation testLibs.mockito.core
     androidTestImplementation testLibs.mockito.inline
     androidTestImplementation testLibs.mockito.kotlin
+    androidTestImplementation testLibs.espresso.intents
     androidTestImplementation libs.leakCanary
     androidTestImplementation testLibs.leakCanaryInstrumentation
     androidTestImplementation testLibs.testParameterInjector
     androidTestImplementation testLibs.truth
+    androidTestImplementation testLibs.turbine
 
     androidTestUtil testLibs.testOrchestrator
 }
@@ -129,6 +133,16 @@ android {
 
         kotlinOptions {
             freeCompilerArgs += ["-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"]
+        }
+
+        managedDevices {
+            localDevices {
+                register("pixel2api33") {
+                    device = "Pixel 2"
+                    apiLevel = 33
+                    systemImageSource = "aosp"
+                }
+            }
         }
     }
 

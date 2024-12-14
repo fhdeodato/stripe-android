@@ -2,8 +2,11 @@ package com.stripe.android.paymentsheet
 
 import android.content.Context
 import android.os.Build
+import androidx.activity.result.ActivityResultCallback
+import androidx.activity.result.ActivityResultCaller
 import androidx.activity.result.ActivityResultLauncher
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertAny
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -12,12 +15,15 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.testing.TestLifecycleOwner
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.pressBack
@@ -43,27 +49,36 @@ import com.stripe.android.model.PaymentIntentFixtures
 import com.stripe.android.model.PaymentMethod
 import com.stripe.android.model.PaymentMethodCreateParamsFixtures
 import com.stripe.android.model.PaymentMethodFixtures
+import com.stripe.android.model.PaymentMethodOptionsParams
 import com.stripe.android.payments.paymentlauncher.PaymentLauncherFactory
 import com.stripe.android.payments.paymentlauncher.PaymentResult
 import com.stripe.android.payments.paymentlauncher.StripePaymentLauncher
 import com.stripe.android.payments.paymentlauncher.StripePaymentLauncherAssistedFactory
 import com.stripe.android.paymentsheet.PaymentSheetViewModel.CheckoutIdentifier
 import com.stripe.android.paymentsheet.analytics.EventReporter
+import com.stripe.android.paymentsheet.cvcrecollection.FakeCvcRecollectionHandler
 import com.stripe.android.paymentsheet.databinding.StripePrimaryButtonBinding
 import com.stripe.android.paymentsheet.model.PaymentSelection
 import com.stripe.android.paymentsheet.model.PaymentSheetViewState
 import com.stripe.android.paymentsheet.navigation.PaymentSheetScreen
 import com.stripe.android.paymentsheet.navigation.PaymentSheetScreen.AddAnotherPaymentMethod
 import com.stripe.android.paymentsheet.navigation.PaymentSheetScreen.SelectSavedPaymentMethods
+import com.stripe.android.paymentsheet.paymentdatacollection.bacs.FakeBacsMandateConfirmationLauncher
+import com.stripe.android.paymentsheet.paymentdatacollection.cvcrecollection.Args
+import com.stripe.android.paymentsheet.paymentdatacollection.cvcrecollection.CvcRecollectionInteractor
 import com.stripe.android.paymentsheet.state.LinkState
 import com.stripe.android.paymentsheet.state.WalletsProcessingState
 import com.stripe.android.paymentsheet.ui.GOOGLE_PAY_BUTTON_TEST_TAG
+import com.stripe.android.paymentsheet.ui.PAYMENT_SHEET_EDIT_BUTTON_TEST_TAG
 import com.stripe.android.paymentsheet.ui.PAYMENT_SHEET_PRIMARY_BUTTON_TEST_TAG
 import com.stripe.android.paymentsheet.ui.PrimaryButton
 import com.stripe.android.paymentsheet.ui.SHEET_NAVIGATION_BUTTON_TAG
 import com.stripe.android.paymentsheet.ui.TEST_TAG_LIST
+import com.stripe.android.paymentsheet.ui.TEST_TAG_MODIFY_BADGE
 import com.stripe.android.paymentsheet.ui.TEST_TAG_REMOVE_BADGE
+import com.stripe.android.paymentsheet.utils.FakeUserFacingLogger
 import com.stripe.android.testing.FakeErrorReporter
+import com.stripe.android.ui.core.cbc.CardBrandChoiceEligibility
 import com.stripe.android.ui.core.elements.TEST_TAG_DIALOG_CONFIRM_BUTTON
 import com.stripe.android.uicore.elements.bottomsheet.BottomSheetContentTestTag
 import com.stripe.android.uicore.utils.stateFlowOf
@@ -71,10 +86,12 @@ import com.stripe.android.utils.FakeCustomerRepository
 import com.stripe.android.utils.FakeIntentConfirmationInterceptor
 import com.stripe.android.utils.FakePaymentSheetLoader
 import com.stripe.android.utils.InjectableActivityScenario
+import com.stripe.android.utils.NullCardAccountRangeRepositoryFactory
 import com.stripe.android.utils.TestUtils.viewModelFactoryFor
 import com.stripe.android.utils.injectableActivityScenario
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -85,6 +102,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.stub
@@ -131,6 +149,8 @@ internal class PaymentSheetActivityTest {
     }
 
     private val fakeIntentConfirmationInterceptor = FakeIntentConfirmationInterceptor()
+
+    private val cvcRecollectionHandler = FakeCvcRecollectionHandler()
 
     private val contract = PaymentSheetContractV2()
 
@@ -183,7 +203,7 @@ internal class PaymentSheetActivityTest {
         scenario.launch(intent).onActivity { activity ->
             assertThat(activity.buyButton.isEnabled).isTrue()
 
-            viewModel.savedPaymentMethodMutator.toggleEditing()
+            startEditing()
             assertThat(activity.buyButton.isEnabled).isFalse()
         }
     }
@@ -198,7 +218,7 @@ internal class PaymentSheetActivityTest {
                 .onNodeWithTag(LinkButtonTestTag)
                 .assertIsEnabled()
 
-            viewModel.savedPaymentMethodMutator.toggleEditing()
+            startEditing()
 
             composeTestRule
                 .onNodeWithTag(LinkButtonTestTag)
@@ -313,6 +333,7 @@ internal class PaymentSheetActivityTest {
             paymentMethods = paymentMethods,
             isGooglePayAvailable = true,
         )
+        val googlePayListener = viewModel.captureGooglePayListener()
 
         val scenario = activityScenario(viewModel)
 
@@ -336,7 +357,7 @@ internal class PaymentSheetActivityTest {
                 .onNodeWithTag(GOOGLE_PAY_BUTTON_TEST_TAG)
                 .performClick()
 
-            viewModel.onGooglePayResult(GooglePayPaymentMethodLauncher.Result.Canceled)
+            googlePayListener.onActivityResult(GooglePayPaymentMethodLauncher.Result.Canceled)
 
             composeTestRule
                 .onNodeWithText(error)
@@ -435,7 +456,7 @@ internal class PaymentSheetActivityTest {
         val scenario = activityScenario(viewModel)
 
         scenario.launch(intent).onActivity { activity ->
-            viewModel.savedPaymentMethodMutator.toggleEditing()
+            startEditing()
 
             composeTestRule.onNodeWithTag(
                 TEST_TAG_REMOVE_BADGE,
@@ -461,6 +482,7 @@ internal class PaymentSheetActivityTest {
         Dispatchers.setMain(testDispatcher)
 
         val viewModel = createViewModel(paymentMethods = emptyList())
+        val googlePayListener = viewModel.captureGooglePayListener()
         val scenario = activityScenario(viewModel)
         scenario.launch(intent).onActivity { activity ->
             // Initially empty card
@@ -473,7 +495,7 @@ internal class PaymentSheetActivityTest {
             assertThat(activity.buyButton.isEnabled).isFalse()
             assertThat(viewModel.contentVisible.value).isFalse()
 
-            viewModel.onGooglePayResult(GooglePayPaymentMethodLauncher.Result.Canceled)
+            googlePayListener.onActivityResult(GooglePayPaymentMethodLauncher.Result.Canceled)
             assertThat(viewModel.contentVisible.value).isTrue()
 
             // Update to saved card
@@ -532,7 +554,12 @@ internal class PaymentSheetActivityTest {
         )
 
         val paymentMethods = listOf(card)
-        val viewModel = createViewModel(paymentMethods = paymentMethods)
+        val viewModel = createViewModel(
+            paymentMethods = paymentMethods,
+            cbcEligibility = CardBrandChoiceEligibility.Eligible(
+                preferredNetworks = listOf(CardBrand.Visa, CardBrand.CartesBancaires)
+            ),
+        )
         val scenario = activityScenario(viewModel)
 
         viewModel.navigationHandler.currentScreen.test {
@@ -545,7 +572,8 @@ internal class PaymentSheetActivityTest {
             pressBack()
             assertThat(awaitItem()).isInstanceOf<SelectSavedPaymentMethods>()
 
-            viewModel.savedPaymentMethodMutator.modifyPaymentMethod(card)
+            startEditing()
+            composeTestRule.onNodeWithTag(TEST_TAG_MODIFY_BADGE).performClick()
             assertThat(awaitItem()).isInstanceOf<PaymentSheetScreen.EditPaymentMethod>()
 
             pressBack()
@@ -649,6 +677,7 @@ internal class PaymentSheetActivityTest {
     @Test
     fun `google pay flow updates the scroll view before and after`() {
         val viewModel = createViewModel(isGooglePayAvailable = true)
+        val googlePayListener = viewModel.captureGooglePayListener()
         val scenario = activityScenario(viewModel)
 
         scenario.launch(intent).onActivity {
@@ -663,7 +692,9 @@ internal class PaymentSheetActivityTest {
             assertThat(viewModel.walletsProcessingState.value).isEqualTo(WalletsProcessingState.Processing)
             assertThat(viewModel.contentVisible.value).isEqualTo(false)
 
-            viewModel.onGooglePayResult(GooglePayPaymentMethodLauncher.Result.Completed(PAYMENT_METHODS.first()))
+            googlePayListener.onActivityResult(
+                GooglePayPaymentMethodLauncher.Result.Completed(PAYMENT_METHODS.first())
+            )
 
             assertThat(viewModel.walletsProcessingState.value).isEqualTo(WalletsProcessingState.Processing)
             assertThat(viewModel.contentVisible.value).isEqualTo(true)
@@ -761,6 +792,38 @@ internal class PaymentSheetActivityTest {
         }
     }
 
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `CVC recollection adds CVC to PaymentMethodOptionsParams`() {
+        cvcRecollectionHandler.cvcRecollectionEnabled = true
+        cvcRecollectionHandler.requiresCVCRecollection = true
+        val viewModel = createViewModel(
+            paymentIntent = PaymentIntentFixtures.PI_REQUIRES_PAYMENT_METHOD_CVC_RECOLLECTION,
+            paymentMethods = PAYMENT_METHODS.take(1)
+        )
+        val scenario = activityScenario(viewModel)
+        scenario.launch(intent).onActivity {
+            composeTestRule.onNodeWithTag(
+                "SAVED_PAYMENT_METHOD_CARD_TEST_TAG_····4242",
+                useUnmergedTree = true,
+            ).assertIsSelected()
+
+            composeTestRule.waitUntilAtLeastOneExists(
+                hasText("Confirm your CVC")
+            )
+
+            composeTestRule.onNodeWithText("CVC").performTextInput("123")
+
+            viewModel.checkout()
+
+            (viewModel.selection.value as PaymentSelection.Saved).let {
+                (it.paymentMethodOptionsParams as PaymentMethodOptionsParams.Card).let { card ->
+                    assertThat(card.cvc).isEqualTo("123")
+                }
+            }
+        }
+    }
+
     @Test
     fun `when checkout starts then error message is cleared`() {
         val viewModel = createViewModel(isGooglePayAvailable = true)
@@ -785,9 +848,10 @@ internal class PaymentSheetActivityTest {
                 .onNodeWithText(errorMessage)
                 .assertDoesNotExist()
 
-            viewModel.checkoutIdentifier = CheckoutIdentifier.SheetTopWallet
-            viewModel.viewState.value =
-                PaymentSheetViewState.Reset(PaymentSheetViewState.UserErrorMessage(errorMessage.resolvableString))
+            fakeIntentConfirmationInterceptor.enqueueFailureStep(
+                IllegalStateException(errorMessage),
+                errorMessage
+            )
 
             composeTestRule
                 .onNodeWithText(errorMessage)
@@ -1054,18 +1118,17 @@ internal class PaymentSheetActivityTest {
         isLinkAvailable: Boolean = false,
         initialPaymentSelection: PaymentSelection? = paymentMethods.firstOrNull()?.let { PaymentSelection.Saved(it) },
         args: PaymentSheetContractV2.Args = PaymentSheetFixtures.ARGS_CUSTOMER_WITH_GOOGLEPAY,
+        cbcEligibility: CardBrandChoiceEligibility = CardBrandChoiceEligibility.Ineligible,
     ): PaymentSheetViewModel = runBlocking {
         TestViewModelFactory.create(
             linkConfigurationCoordinator = mock<LinkConfigurationCoordinator>().stub {
                 onBlocking { getAccountStatusFlow(any()) }.thenReturn(flowOf(AccountStatus.SignedOut))
                 on { emailFlow } doReturn stateFlowOf("email@email.com")
             },
-        ) { linkHandler, linkInteractor, savedStateHandle ->
+        ) { linkHandler, savedStateHandle ->
             PaymentSheetViewModel(
-                application = ApplicationProvider.getApplicationContext(),
                 args = args,
                 eventReporter = eventReporter,
-                lazyPaymentConfig = { PaymentConfiguration(ApiKeyFixtures.FAKE_PUBLISHABLE_KEY) },
                 paymentSheetLoader = FakePaymentSheetLoader(
                     stripeIntent = paymentIntent,
                     customer = PaymentSheetFixtures.EMPTY_CUSTOMER_STATE.copy(paymentMethods = paymentMethods),
@@ -1073,25 +1136,68 @@ internal class PaymentSheetActivityTest {
                     linkState = LinkState(
                         configuration = mock(),
                         loginState = LinkState.LoginState.LoggedOut,
+                        signupMode = null,
                     ).takeIf { isLinkAvailable },
                     delay = loadDelay,
                     paymentSelection = initialPaymentSelection,
+                    cbcEligibility = cbcEligibility,
                 ),
                 customerRepository = FakeCustomerRepository(paymentMethods),
                 prefsRepository = FakePrefsRepository(),
-                paymentLauncherFactory = stripePaymentLauncherAssistedFactory,
-                googlePayPaymentMethodLauncherFactory = googlePayPaymentMethodLauncherFactory,
-                bacsMandateConfirmationLauncherFactory = mock(),
                 logger = Logger.noop(),
                 workContext = testDispatcher,
                 savedStateHandle = savedStateHandle,
                 linkHandler = linkHandler,
-                linkConfigurationCoordinator = linkInteractor,
-                intentConfirmationInterceptor = fakeIntentConfirmationInterceptor,
-                editInteractorFactory = FakeEditPaymentMethodInteractor.Factory,
+                intentConfirmationHandlerFactory = IntentConfirmationHandler.Factory(
+                    intentConfirmationInterceptor = fakeIntentConfirmationInterceptor,
+                    savedStateHandle = savedStateHandle,
+                    stripePaymentLauncherAssistedFactory = stripePaymentLauncherAssistedFactory,
+                    bacsMandateConfirmationLauncherFactory = { FakeBacsMandateConfirmationLauncher() },
+                    googlePayPaymentMethodLauncherFactory = googlePayPaymentMethodLauncherFactory,
+                    paymentConfigurationProvider = { PaymentConfiguration(ApiKeyFixtures.FAKE_PUBLISHABLE_KEY) },
+                    statusBarColor = { args.statusBarColor },
+                    errorReporter = FakeErrorReporter(),
+                    logger = FakeUserFacingLogger(),
+                ),
+                cardAccountRangeRepositoryFactory = NullCardAccountRangeRepositoryFactory,
+                editInteractorFactory = FakeEditPaymentMethodInteractor.Factory(),
                 errorReporter = FakeErrorReporter(),
+                cvcRecollectionHandler = cvcRecollectionHandler,
+                cvcRecollectionInteractorFactory = object : CvcRecollectionInteractor.Factory {
+                    override fun create(
+                        args: Args,
+                        processing: StateFlow<Boolean>,
+                        coroutineScope: CoroutineScope,
+                    ): CvcRecollectionInteractor {
+                        return FakeCvcRecollectionInteractor()
+                    }
+                }
             )
         }
+    }
+
+    private fun PaymentSheetViewModel.captureGooglePayListener():
+        ActivityResultCallback<GooglePayPaymentMethodLauncher.Result> {
+        val mockActivityResultCaller = mock<ActivityResultCaller> {
+            on {
+                registerForActivityResult<
+                    GooglePayPaymentMethodLauncherContractV2.Args,
+                    GooglePayPaymentMethodLauncher.Result
+                    >(any(), any())
+            } doReturn mock()
+        }
+
+        registerFromActivity(mockActivityResultCaller, TestLifecycleOwner())
+
+        val googlePayListenerCaptor =
+            argumentCaptor<ActivityResultCallback<GooglePayPaymentMethodLauncher.Result>>()
+
+        verify(mockActivityResultCaller).registerForActivityResult(
+            any<GooglePayPaymentMethodLauncherContractV2>(),
+            googlePayListenerCaptor.capture(),
+        )
+
+        return googlePayListenerCaptor.firstValue
     }
 
     private fun createGooglePayPaymentMethodLauncherFactory() =
@@ -1108,6 +1214,13 @@ internal class PaymentSheetActivityTest {
                 return googlePayPaymentMethodLauncher
             }
         }
+
+    private fun startEditing() {
+        composeTestRule.waitUntil {
+            composeTestRule.onAllNodesWithTag(PAYMENT_SHEET_EDIT_BUTTON_TEST_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(PAYMENT_SHEET_EDIT_BUTTON_TEST_TAG).performClick()
+    }
 
     private companion object {
         private val PAYMENT_INTENT = PaymentIntentFixtures.PI_REQUIRES_PAYMENT_METHOD

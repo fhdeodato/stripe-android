@@ -12,7 +12,9 @@ import com.stripe.android.financialconnections.model.PartnerAccount
 import com.stripe.android.financialconnections.model.PartnerAccountsList
 import com.stripe.android.financialconnections.model.SynchronizeSessionResponse
 import com.stripe.android.financialconnections.model.VisualUpdate
+import com.stripe.android.financialconnections.repository.CachedConsumerSession
 import com.stripe.android.model.ConsumerSession
+import com.stripe.android.model.ConsumerSessionSignup
 
 internal object ApiKeyFixtures {
     const val DEFAULT_PUBLISHABLE_KEY = "pk_test_vOo1umqsYxSrP5UXfOeL3ecm"
@@ -58,6 +60,7 @@ internal object ApiKeyFixtures {
         instantVerificationDisabled = true,
         institutionSearchDisabled = true,
         livemode = true,
+        businessName = "businessName",
         manualEntryUsesMicrodeposits = true,
         mobileHandoffEnabled = true,
         nextPane = FinancialConnectionsSessionManifest.Pane.CONSENT,
@@ -133,6 +136,38 @@ internal object ApiKeyFixtures {
         redactedPhoneNumber = "+1********12",
         redactedFormattedPhoneNumber = "(***) *** **12",
         verificationSessions = emptyList(),
-        publishableKey = null
+    )
+
+    fun verifiedConsumerSession() = ConsumerSession(
+        clientSecret = "clientSecret",
+        emailAddress = "test@test.com",
+        redactedPhoneNumber = "+1********12",
+        redactedFormattedPhoneNumber = "(***) *** **12",
+        verificationSessions = listOf(
+            ConsumerSession.VerificationSession(
+                type = ConsumerSession.VerificationSession.SessionType.Sms,
+                state = ConsumerSession.VerificationSession.SessionState.Verified,
+            )
+        ),
+    )
+
+    fun consumerSessionSignup() = ConsumerSessionSignup(
+        publishableKey = "pk_123",
+        consumerSession = consumerSession().copy(
+            verificationSessions = listOf(
+                ConsumerSession.VerificationSession(
+                    type = ConsumerSession.VerificationSession.SessionType.SignUp,
+                    state = ConsumerSession.VerificationSession.SessionState.Started,
+                )
+            ),
+        ),
+    )
+
+    fun cachedConsumerSession() = CachedConsumerSession(
+        clientSecret = "clientSecret",
+        emailAddress = "test@test.com",
+        phoneNumber = "(***) *** **12",
+        publishableKey = null,
+        isVerified = true,
     )
 }

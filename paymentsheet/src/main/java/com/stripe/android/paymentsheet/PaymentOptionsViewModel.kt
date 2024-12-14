@@ -1,6 +1,5 @@
 package com.stripe.android.paymentsheet
 
-import android.app.Application
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -8,11 +7,11 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.stripe.android.analytics.SessionSavedStateHandler
+import com.stripe.android.cards.CardAccountRangeRepository
 import com.stripe.android.core.injection.IOContext
 import com.stripe.android.core.strings.ResolvableString
 import com.stripe.android.core.strings.resolvableString
 import com.stripe.android.core.utils.requireApplication
-import com.stripe.android.link.LinkConfigurationCoordinator
 import com.stripe.android.lpmfoundations.paymentmethod.PaymentMethodMetadata
 import com.stripe.android.model.PaymentIntent
 import com.stripe.android.model.SetupIntent
@@ -35,7 +34,7 @@ import com.stripe.android.paymentsheet.verticalmode.VerticalModeInitialScreenFac
 import com.stripe.android.paymentsheet.viewmodels.BaseSheetViewModel
 import com.stripe.android.paymentsheet.viewmodels.PrimaryButtonUiStateMapper
 import com.stripe.android.uicore.utils.combineAsStateFlow
-import com.stripe.android.uicore.utils.mapAsStateFlow
+import com.stripe.android.uicore.utils.stateFlowOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -53,21 +52,19 @@ internal class PaymentOptionsViewModel @Inject constructor(
     eventReporter: EventReporter,
     customerRepository: CustomerRepository,
     @IOContext workContext: CoroutineContext,
-    application: Application,
     savedStateHandle: SavedStateHandle,
     linkHandler: LinkHandler,
-    linkConfigurationCoordinator: LinkConfigurationCoordinator,
+    cardAccountRangeRepositoryFactory: CardAccountRangeRepository.Factory,
     editInteractorFactory: ModifiableEditPaymentMethodViewInteractor.Factory
 ) : BaseSheetViewModel(
-    application = application,
     config = args.state.config,
     eventReporter = eventReporter,
     customerRepository = customerRepository,
     workContext = workContext,
     savedStateHandle = savedStateHandle,
     linkHandler = linkHandler,
-    linkConfigurationCoordinator = linkConfigurationCoordinator,
     editInteractorFactory = editInteractorFactory,
+    cardAccountRangeRepositoryFactory = cardAccountRangeRepositoryFactory,
     isCompleteFlow = false,
 ) {
 
@@ -76,7 +73,7 @@ internal class PaymentOptionsViewModel @Inject constructor(
         isProcessingPayment = args.state.stripeIntent is PaymentIntent,
         currentScreenFlow = navigationHandler.currentScreen,
         buttonsEnabledFlow = buttonsEnabled,
-        amountFlow = paymentMethodMetadata.mapAsStateFlow { it?.amount() },
+        amountFlow = stateFlowOf(args.state.paymentMethodMetadata.amount()),
         selectionFlow = selection,
         customPrimaryButtonUiStateFlow = customPrimaryButtonUiState,
         cvcCompleteFlow = cvcRecollectionCompleteFlow,
@@ -96,17 +93,16 @@ internal class PaymentOptionsViewModel @Inject constructor(
 
     override val walletsState: StateFlow<WalletsState?> = combineAsStateFlow(
         linkHandler.isLinkEnabled,
-        linkConfigurationCoordinator.emailFlow,
+        linkHandler.linkConfigurationCoordinator.emailFlow,
         buttonsEnabled,
-        paymentMethodMetadata.mapAsStateFlow { it?.supportedPaymentMethodTypes().orEmpty() },
-        paymentMethodMetadata.mapAsStateFlow { it?.isGooglePayReady == true },
-    ) { isLinkAvailable, linkEmail, buttonsEnabled, paymentMethodTypes, isGooglePayReady ->
+    ) { isLinkAvailable, linkEmail, buttonsEnabled ->
+        val paymentMethodMetadata = args.state.paymentMethodMetadata
         WalletsState.create(
             isLinkAvailable = isLinkAvailable,
             linkEmail = linkEmail,
-            isGooglePayReady = isGooglePayReady,
+            isGooglePayReady = paymentMethodMetadata.isGooglePayReady,
             buttonsEnabled = buttonsEnabled,
-            paymentMethodTypes = paymentMethodTypes,
+            paymentMethodTypes = paymentMethodMetadata.supportedPaymentMethodTypes(),
             googlePayLauncherConfig = null,
             googlePayButtonType = GooglePayButtonType.Pay,
             onGooglePayPressed = {
@@ -117,7 +113,7 @@ internal class PaymentOptionsViewModel @Inject constructor(
                 updateSelection(PaymentSelection.Link)
                 onUserSelection()
             },
-            isSetupIntent = paymentMethodMetadata.value?.stripeIntent is SetupIntent
+            isSetupIntent = paymentMethodMetadata.stripeIntent is SetupIntent
         )
     }
 
@@ -155,12 +151,17 @@ internal class PaymentOptionsViewModel @Inject constructor(
         if (paymentMethodMetadata.value == null) {
             setPaymentMethodMetadata(args.state.paymentMethodMetadata)
         }
-        savedPaymentMethodMutator.customer = args.state.customer
+        customerStateHolder.setCustomerState(args.state.customer)
         savedStateHandle[SAVE_PROCESSING] = false
 
         updateSelection(args.state.paymentSelection)
 
-        navigationHandler.resetTo(determineInitialBackStack(args.state.paymentMethodMetadata))
+        navigationHandler.resetTo(
+            determineInitialBackStack(
+                paymentMethodMetadata = args.state.paymentMethodMetadata,
+                customerStateHolder = customerStateHolder,
+            )
+        )
     }
 
     private fun handleLinkProcessingState(processingState: LinkHandler.ProcessingState) {
@@ -208,7 +209,7 @@ internal class PaymentOptionsViewModel @Inject constructor(
             PaymentOptionResult.Canceled(
                 mostRecentError = null,
                 paymentSelection = determinePaymentSelectionUponCancel(),
-                paymentMethods = savedPaymentMethodMutator.paymentMethods.value,
+                paymentMethods = customerStateHolder.paymentMethods.value,
             )
         )
     }
@@ -224,7 +225,7 @@ internal class PaymentOptionsViewModel @Inject constructor(
     }
 
     private fun PaymentSelection.Saved.takeIfStillValid(): PaymentSelection.Saved? {
-        val paymentMethods = savedPaymentMethodMutator.paymentMethods.value
+        val paymentMethods = customerStateHolder.paymentMethods.value
         val isStillAround = paymentMethods.any { it.id == paymentMethod.id }
         return this.takeIf { isStillAround }
     }
@@ -255,12 +256,10 @@ internal class PaymentOptionsViewModel @Inject constructor(
     }
 
     override fun handlePaymentMethodSelected(selection: PaymentSelection?) {
-        if (!savedPaymentMethodMutator.editing.value) {
-            updateSelection(selection)
+        updateSelection(selection)
 
-            if (selection?.requiresConfirmation != true) {
-                onUserSelection()
-            }
+        if (selection?.requiresConfirmation != true) {
+            onUserSelection()
         }
     }
 
@@ -278,7 +277,7 @@ internal class PaymentOptionsViewModel @Inject constructor(
         _paymentOptionResult.tryEmit(
             PaymentOptionResult.Succeeded(
                 paymentSelection = paymentSelection,
-                paymentMethods = savedPaymentMethodMutator.paymentMethods.value
+                paymentMethods = customerStateHolder.paymentMethods.value
             )
         )
     }
@@ -287,24 +286,28 @@ internal class PaymentOptionsViewModel @Inject constructor(
         _paymentOptionResult.tryEmit(
             PaymentOptionResult.Succeeded(
                 paymentSelection = paymentSelection,
-                paymentMethods = savedPaymentMethodMutator.paymentMethods.value
+                paymentMethods = customerStateHolder.paymentMethods.value
             )
         )
     }
 
-    private fun determineInitialBackStack(paymentMethodMetadata: PaymentMethodMetadata): List<PaymentSheetScreen> {
-        if (config.paymentMethodLayout == PaymentSheet.PaymentMethodLayout.Vertical) {
-            return listOf(
-                VerticalModeInitialScreenFactory.create(
-                    viewModel = this,
-                    paymentMethodMetadata = paymentMethodMetadata
-                )
+    private fun determineInitialBackStack(
+        paymentMethodMetadata: PaymentMethodMetadata,
+        customerStateHolder: CustomerStateHolder,
+    ): List<PaymentSheetScreen> {
+        if (config.paymentMethodLayout != PaymentSheet.PaymentMethodLayout.Horizontal) {
+            return VerticalModeInitialScreenFactory.create(
+                viewModel = this,
+                paymentMethodMetadata = paymentMethodMetadata,
+                customerStateHolder = customerStateHolder,
             )
         }
         val target = if (args.state.showSavedPaymentMethods) {
             val interactor = DefaultSelectSavedPaymentMethodsInteractor.create(
                 viewModel = this,
                 paymentMethodMetadata = paymentMethodMetadata,
+                customerStateHolder = customerStateHolder,
+                savedPaymentMethodMutator = savedPaymentMethodMutator,
             )
             SelectSavedPaymentMethods(interactor = interactor)
         } else {

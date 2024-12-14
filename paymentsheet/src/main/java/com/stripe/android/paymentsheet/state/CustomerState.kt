@@ -28,20 +28,23 @@ internal data class CustomerState(
          * @return [CustomerState] instance using [ElementsSession.Customer] data
          */
         internal fun createForCustomerSession(
-            customer: ElementsSession.Customer
+            customer: ElementsSession.Customer,
+            supportedSavedPaymentMethodTypes: List<PaymentMethod.Type>,
         ): CustomerState {
             val canRemovePaymentMethods = when (
-                val paymentSheetComponent = customer.session.components.paymentSheet
+                val mobilePaymentElementComponent = customer.session.components.mobilePaymentElement
             ) {
-                is ElementsSession.Customer.Components.PaymentSheet.Enabled ->
-                    paymentSheetComponent.isPaymentMethodRemoveEnabled
-                is ElementsSession.Customer.Components.PaymentSheet.Disabled -> false
+                is ElementsSession.Customer.Components.MobilePaymentElement.Enabled ->
+                    mobilePaymentElementComponent.isPaymentMethodRemoveEnabled
+                is ElementsSession.Customer.Components.MobilePaymentElement.Disabled -> false
             }
 
             return CustomerState(
                 id = customer.session.customerId,
                 ephemeralKeySecret = customer.session.apiKey,
-                paymentMethods = customer.paymentMethods,
+                paymentMethods = customer.paymentMethods.filter {
+                    supportedSavedPaymentMethodTypes.contains(it.type)
+                },
                 permissions = Permissions(
                     canRemovePaymentMethods = canRemovePaymentMethods,
                     // Should always remove duplicates when using `customer_session`

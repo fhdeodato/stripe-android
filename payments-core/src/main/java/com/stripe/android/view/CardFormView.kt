@@ -75,6 +75,8 @@ class CardFormView @JvmOverloads constructor(
 
     private var cardValidCallback: CardValidCallback? = null
 
+    private val lifecycleOwnerDelegate = LifecycleOwnerDelegate()
+
     private val allEditTextFields: Collection<StripeEditText>
         get() {
             return listOf(
@@ -153,7 +155,8 @@ class CardFormView @JvmOverloads constructor(
                 address = Address.Builder()
                     .setCountryCode(countryLayout.selectedCountryCode)
                     .setPostalCode(postalCodeView.text?.toString())
-                    .build()
+                    .build(),
+                networks = cardMultilineWidget.cardBrandView.cardParamsNetworks()
             )
         }
 
@@ -171,7 +174,7 @@ class CardFormView @JvmOverloads constructor(
                     expiryMonth = it.expMonth,
                     expiryYear = it.expYear,
                     attribution = it.attribution,
-                    networks = cardMultilineWidget.cardBrandView.createNetworksParam(),
+                    networks = cardMultilineWidget.cardBrandView.paymentMethodCreateParamsNetworks(),
                 )
             }
         }
@@ -192,12 +195,15 @@ class CardFormView @JvmOverloads constructor(
      */
     var onBehalfOf: String? = null
         set(value) {
-            if (isAttachedToWindow) {
-                doWithCardWidgetViewModel(viewModelStoreOwner) { viewModel ->
-                    viewModel.onBehalfOf = value
+            if (field != value) {
+                if (isAttachedToWindow) {
+                    doWithCardWidgetViewModel(viewModelStoreOwner) { viewModel ->
+                        viewModel.setOnBehalfOf(value)
+                    }
                 }
+
+                field = value
             }
-            field = value
         }
 
     init {
@@ -413,7 +419,8 @@ class CardFormView @JvmOverloads constructor(
     override fun onSaveInstanceState(): Parcelable {
         return bundleOf(
             STATE_SUPER_STATE to super.onSaveInstanceState(),
-            STATE_ENABLED to isEnabled
+            STATE_ENABLED to isEnabled,
+            STATE_ON_BEHALF_OF to onBehalfOf,
         )
     }
 
@@ -421,9 +428,27 @@ class CardFormView @JvmOverloads constructor(
         if (state is Bundle) {
             super.onRestoreInstanceState(state.getParcelable(STATE_SUPER_STATE))
             isEnabled = state.getBoolean(STATE_ENABLED)
+            onBehalfOf = state.getString(STATE_ON_BEHALF_OF)
         } else {
             super.onRestoreInstanceState(state)
         }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        lifecycleOwnerDelegate.initLifecycle(this)
+        // Merchant could set onBehalfOf before view is attached to window.
+        // Check and set if needed.
+        doWithCardWidgetViewModel(viewModelStoreOwner) { viewModel ->
+            if (onBehalfOf != null && viewModel.onBehalfOf != onBehalfOf) {
+                viewModel.setOnBehalfOf(onBehalfOf)
+            }
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        lifecycleOwnerDelegate.destroyLifecycle(this)
     }
 
     /**
@@ -538,5 +563,6 @@ class CardFormView @JvmOverloads constructor(
         const val CARD_FORM_VIEW = "CardFormView"
         private const val STATE_ENABLED = "state_enabled"
         private const val STATE_SUPER_STATE = "state_super_state"
+        private const val STATE_ON_BEHALF_OF = "state_on_behalf_of"
     }
 }
