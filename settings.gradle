@@ -29,10 +29,7 @@ include ':ml-core:cardscan'
 include ':ml-core:googleplay'
 include ':screenshot-testing'
 include ':lint'
-<<<<<<< Updated upstream
-=======
 include ':3ds2sdk'
 include ':3ds2playground'
 include ':dokka-stripe'
 include ':stripe-attestation'
->>>>>>> Stashed changes
