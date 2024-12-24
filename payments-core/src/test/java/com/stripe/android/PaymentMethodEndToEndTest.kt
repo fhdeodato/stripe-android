@@ -256,7 +256,9 @@ internal class PaymentMethodEndToEndTest {
 
     @Test
     fun createPaymentMethod_withAlipay_shouldCreateObject() {
-        val params = PaymentMethodCreateParams.createAlipay()
+        val params = PaymentMethodCreateParams.createAlipay(
+            billingDetails = PaymentMethodCreateParamsFixtures.BILLING_DETAILS
+        )
         val paymentMethod =
             Stripe(context, ApiKeyFixtures.ALIPAY_PUBLISHABLE_KEY)
                 .createPaymentMethodSynchronous(params)

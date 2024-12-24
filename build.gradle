@@ -1,5 +1,7 @@
 import java.time.Duration
 
+
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
     apply from: 'dependencies.gradle'
@@ -10,6 +12,8 @@ buildscript {
         google()
         gradlePluginPortal()
     }
+
+
 
     dependencies {
         classpath buildLibs.androidGradlePlugin
@@ -98,7 +102,7 @@ apiValidation {
             "payments-core-testing",
             "paymentsheet-example",
             "stripecardscan-example",
-            "stripe-connect-example",
+            "connect-example",
             "screenshot-testing",
             "3ds2playground",
             "dokka-stripe",
